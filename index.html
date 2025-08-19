@@ -379,17 +379,28 @@
         
         try {
           const PMTiles = window.pmtiles.PMTiles;
+          const protocol = new window.pmtiles.Protocol();
+          
+          // Create PMTiles instances and register protocol
           const pm95 = new PMTiles('assets/sc_acc_hot_spots_overlap_95.pmtiles');
           const pm99 = new PMTiles('assets/sc_acc_hot_spots_overlap_99.pmtiles');
           
-          // Register PMTiles protocol
-          const protocol = new window.pmtiles.Protocol();
+          // Register the protocol
           window.pmtiles.registerProtocol(protocol);
           protocol.add(pm95);
           protocol.add(pm99);
           
-          setupHotspotLayers(pm95, pm99);
-          statusEl.textContent = 'PMTiles layers initialized';
+          // Verify PMTiles files are accessible
+          Promise.all([pm95.getHeader(), pm99.getHeader()])
+            .then(() => {
+              setupHotspotLayers(pm95, pm99);
+              statusEl.textContent = 'PMTiles layers initialized';
+            })
+            .catch(error => {
+              console.error('Error accessing PMTiles:', error);
+              statusEl.textContent = 'PMTiles access error: ' + error.message;
+              showError('PMTiles Error', 'Could not access hotspot data files. Showing catchments only.');
+            });
         } catch (error) {
           console.error('Error initializing PMTiles:', error);
           statusEl.textContent = 'PMTiles initialization error: ' + error.message;
