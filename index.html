@@ -104,7 +104,7 @@
     ).addTo(map);
 
     // Load and add the catchments TopoJSON (always visible)
-    const catchmentsUrl = "catchments.json";
+    const catchmentsUrl = "assets/catchments.json";
 
     $.getJSON(catchmentsUrl, function (topoData) {
       // Assume catchments layer is named 'catchments' inside the TopoJSON
@@ -129,8 +129,8 @@
     });
 
     // PMTiles URLs for your tracts
-    const pmtiles95Url = "sc_acc_hot_spots_overlap_95.pmtiles";
-    const pmtiles99Url = "sc_acc_hot_spots_overlap_99.pmtiles";
+    const pmtiles95Url = "assets/sc_acc_hot_spots_overlap_95.pmtiles";
+    const pmtiles99Url = "assets/sc_acc_hot_spots_overlap_99.pmtiles";
 
     // Create PMTiles layers (using pmtiles-leaflet)
     const pmtiles95 = new PMTiles(pmtiles95Url);
@@ -181,7 +181,6 @@
 
     // Update vector tile style on layer with new field
     function updatePmtilesLayerStyle(layer, field) {
-      // pmtiles-leaflet supports setStyle on vector tiles with style function
       layer.setStyle((feature) => {
         return styleFeature(feature.properties, field);
       });
@@ -191,22 +190,17 @@
     $("input[name='tractField']").on("change", function () {
       const selectedField = $(this).val();
 
-      // For overlap_type (95) use pmtilesLayer95
       if (selectedField === "overlap_type") {
         if (map.hasLayer(pmtilesLayer99)) map.removeLayer(pmtilesLayer99);
         if (!map.hasLayer(pmtilesLayer95)) pmtilesLayer95.addTo(map);
         currentPmtilesLayer = pmtilesLayer95;
         updatePmtilesLayerStyle(currentPmtilesLayer, selectedField);
-      }
-      // For overlap_type_99 use pmtilesLayer99
-      else if (selectedField === "overlap_type_99") {
+      } else if (selectedField === "overlap_type_99") {
         if (map.hasLayer(pmtilesLayer95)) map.removeLayer(pmtilesLayer95);
         if (!map.hasLayer(pmtilesLayer99)) pmtilesLayer99.addTo(map);
         currentPmtilesLayer = pmtilesLayer99;
         updatePmtilesLayerStyle(currentPmtilesLayer, selectedField);
-      }
-      // For COLON_SCRE or fin100k, always show pmtilesLayer95
-      else {
+      } else {
         if (map.hasLayer(pmtilesLayer99)) map.removeLayer(pmtilesLayer99);
         if (!map.hasLayer(pmtilesLayer95)) pmtilesLayer95.addTo(map);
         currentPmtilesLayer = pmtilesLayer95;
