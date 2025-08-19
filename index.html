@@ -1,19 +1,273 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Healthcare Access & Screening Hotspots</title>
+
+  <!-- Leaflet CSS -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css"/>
+  
+  <!-- Turf.js for spatial operations -->
+  <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
+  
   <style>
-    /* Your existing CSS */
-    html, body, #map { height: 100%; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-    /* (Other CSS omitted for brevity but included as before) */
+    html, body, #map { 
+      height: 100%; 
+      margin: 0; 
+      padding: 0; 
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+    
+    #map { 
+      width: 100%; 
+      background: #f0f5f9;
+    }
+
+    .control-panel {
+      position: absolute;
+      top: 10px; 
+      left: 10px;
+      background: rgba(255, 255, 255, 0.95);
+      padding: 15px;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      font-size: 14px;
+      border-radius: 8px;
+      z-index: 1000;
+      max-width: 260px;
+      box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);
+      border: 1px solid #ddd;
+    }
+    
+    .control-panel h3 {
+      margin-top: 0;
+      color: #2c3e50;
+      border-bottom: 1px solid #eee;
+      padding-bottom: 8px;
+    }
+
+    .legend {
+      position: absolute;
+      bottom: 20px; 
+      right: 20px;
+      background: rgba(255, 255, 255, 0.95);
+      padding: 15px;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      font-size: 14px;
+      border-radius: 8px;
+      z-index: 1000;
+      max-width: 300px;
+      box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);
+      border: 1px solid #ddd;
+    }
+    
+    .legend h3 {
+      margin-top: 0;
+      color: #2c3e50;
+      border-bottom: 1px solid #eee;
+      padding-bottom: 8px;
+    }
+
+    .legend .color-box {
+      display: inline-block;
+      width: 20px; 
+      height: 20px;
+      margin-right: 8px;
+      vertical-align: middle;
+      border-radius: 3px;
+      border: 1px solid rgba(0, 0, 0, 0.2);
+    }
+    
+    .legend-item {
+      margin: 5px 0;
+      display: flex;
+      align-items: center;
+    }
+    
+    .radio-group {
+      margin-bottom: 15px;
+    }
+    
+    label {
+      display: flex;
+      align-items: center;
+      margin: 5px 0;
+      cursor: pointer;
+      transition: all 0.2s;
+      padding: 5px;
+      border-radius: 4px;
+    }
+    
+    label:hover {
+      background: #f1f8ff;
+    }
+    
+    input[type="radio"] {
+      margin-right: 8px;
+    }
+    
+    .title-bar {
+      position: absolute;
+      top: 10px;
+      left: 0;
+      right: 0;
+      text-align: center;
+      z-index: 1000;
+    }
+    
+    .title-bar h1 {
+      display: inline-block;
+      background: rgba(255, 255, 255, 0.9);
+      padding: 10px 25px;
+      border-radius: 30px;
+      font-size: 1.4em;
+      color: #2c3e50;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      margin: 0;
+    }
+    
+    .status-bar {
+      position: absolute;
+      bottom: 10px;
+      left: 10px;
+      background: rgba(255, 255, 255, 0.9);
+      padding: 8px 15px;
+      border-radius: 4px;
+      font-size: 12px;
+      z-index: 1000;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    }
+    
+    .error-panel {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: rgba(255, 255, 255, 0.95);
+      padding: 20px;
+      border-radius: 8px;
+      z-index: 2000;
+      text-align: center;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+      max-width: 400px;
+    }
+    
+    .error-panel h2 {
+      color: #d9534f;
+      margin-top: 0;
+    }
+    
+    .error-panel p {
+      margin-bottom: 15px;
+    }
+    
+    .btn {
+      background: #5bc0de;
+      color: white;
+      border: none;
+      padding: 8px 15px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+    
+    .btn:hover {
+      background: #46b8da;
+    }
+    
+    /* Custom zoom controls */
+    .leaflet-control-zoom {
+      border: 2px solid rgba(0, 0, 0, 0.2);
+      background-clip: padding-box;
+      border-radius: 4px;
+    }
+    
+    .leaflet-control-zoom a {
+      background-color: #fff;
+      color: #333;
+      font-weight: bold;
+      width: 30px;
+      height: 30px;
+      line-height: 30px;
+      font-size: 18px;
+    }
+    
+    .leaflet-control-zoom a:hover {
+      background-color: #f4f4f4;
+    }
+    
+    .catchment-popup-content {
+      max-height: 200px;
+      overflow-y: auto;
+    }
+    
+    .catchment-item {
+      padding: 5px 0;
+      border-bottom: 1px solid #eee;
+    }
+    
+    .catchment-item:last-child {
+      border-bottom: none;
+    }
+    
+    /* Debug panel */
+    .debug-panel {
+      position: absolute;
+      bottom: 50px;
+      left: 10px;
+      background: rgba(0, 0, 0, 0.7);
+      color: white;
+      padding: 10px;
+      border-radius: 4px;
+      font-size: 12px;
+      z-index: 1000;
+      max-width: 300px;
+      max-height: 200px;
+      overflow-y: auto;
+      display: none;
+    }
+    
+    .solution-panel {
+      position: absolute;
+      top: 100px;
+      right: 10px;
+      background: rgba(255, 255, 255, 0.95);
+      padding: 15px;
+      border-radius: 8px;
+      z-index: 1000;
+      max-width: 300px;
+      box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);
+      border: 1px solid #ddd;
+    }
+    
+    .solution-panel h3 {
+      margin-top: 0;
+      color: #2c3e50;
+      border-bottom: 1px solid #eee;
+      padding-bottom: 8px;
+    }
+    
+    .cors-fix-notice {
+      position: absolute;
+      bottom: 10px;
+      right: 10px;
+      background: rgba(255, 255, 255, 0.9);
+      padding: 10px;
+      border-radius: 4px;
+      font-size: 12px;
+      z-index: 1000;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+      max-width: 300px;
+    }
   </style>
 </head>
 <body>
-  <div class="title-bar"><h1>Healthcare Access & Screening Hotspots</h1></div>
+  <div class="title-bar">
+    <h1>Healthcare Access & Screening Hotspots</h1>
+  </div>
+  
   <div id="map"></div>
+
   <div class="control-panel">
     <h3>95% Hotspot Tracts</h3>
     <div class="radio-group">
@@ -21,174 +275,397 @@
       <label><input type="radio" name="tractField" value="fin100k_95"> Primary care providers per 100k</label>
       <label><input type="radio" name="tractField" value="overlap_type_95"> Access-screening overlap</label>
     </div>
+
     <h3>99% Hotspot Tracts</h3>
     <div class="radio-group">
       <label><input type="radio" name="tractField" value="COLON_SCRE_99"> CRC screening (%)</label>
       <label><input type="radio" name="tractField" value="fin100k_99"> Primary care providers per 100k</label>
       <label><input type="radio" name="tractField" value="overlap_type_99"> Access-screening overlap</label>
     </div>
-    <!-- Here's the checkbox with the correct ID -->
+    
     <div style="margin-top: 15px; padding-top: 10px; border-top: 1px solid #eee;">
       <label><input type="checkbox" id="debugToggle"> Show debug info</label>
     </div>
   </div>
-  <div class="legend"><h3>Legend</h3><div id="legend-content"></div></div>
-  <div class="status-bar"><span id="status">Initializing map...</span></div>
+
+  <div class="legend">
+    <h3>Legend</h3>
+    <div id="legend-content"></div>
+  </div>
+  
+  <div class="status-bar">
+    <span id="status">Initializing map...</span>
+  </div>
+  
   <div class="debug-panel" id="debugPanel"></div>
+  
   <div class="solution-panel">
     <h3>GitHub Pages Solution</h3>
     <p>This implementation uses direct file access with correct CORS headers.</p>
     <p>No external proxies required!</p>
   </div>
 
+  <!-- Load scripts at the end to ensure DOM is ready -->
   <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
   <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
   <script src="https://unpkg.com/leaflet.vectorgrid@1.3.0/dist/Leaflet.VectorGrid.bundled.js"></script>
+  
+  <!-- PMTiles library -->
   <script src="https://unpkg.com/pmtiles@3.1.2/dist/umd/index.js"></script>
-
+  
   <script>
-  document.addEventListener('DOMContentLoaded', function() {
-    const basePath = '/catchment_screening_access_hotspots/';
-    const statusEl = document.getElementById('status');
-    const debugPanel = document.getElementById('debugPanel');
-    const debugToggle = document.getElementById('debugToggle');
-    let debugLog = [];
-
-    function debugLogMessage(msg) {
-      debugLog.push(new Date().toLocaleTimeString() + ': ' + msg);
-      if (debugLog.length > 10) debugLog.shift();
-      if (debugPanel.style.display === 'block') {
-        debugPanel.innerHTML = debugLog.join('<br>');
+    document.addEventListener('DOMContentLoaded', function() {
+      const statusEl = document.getElementById('status');
+      const debugPanel = document.getElementById('debugPanel');
+      const debugToggle = document.getElementById('debugToggle');
+      let debugLog = [];
+      
+      // Debug logging function
+      function debugLogMessage(message) {
+        debugLog.push(new Date().toLocaleTimeString() + ': ' + message);
+        if (debugLog.length > 10) debugLog.shift();
+        
+        if (debugPanel.style.display === 'block') {
+          debugPanel.innerHTML = debugLog.join('<br>');
+        }
       }
-    }
-
-    // Only add listener if element exists
-    if (debugToggle) {
+      
+      // Toggle debug panel
       debugToggle.addEventListener('change', function() {
         debugPanel.style.display = this.checked ? 'block' : 'none';
-        if (this.checked) debugPanel.innerHTML = debugLog.join('<br>');
+        if (this.checked) {
+          debugPanel.innerHTML = debugLog.join('<br>');
+        }
       });
-    }
-
-    const map = L.map('map', { zoomControl: false }).setView([33.5186, -86.8104], 7);
-    L.control.zoom({ position: 'topright' }).addTo(map);
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-      attribution: '&copy; OpenStreetMap &copy; CartoDB'
-    }).addTo(map);
-
-    let catchmentsData = [];
-
-    function isPointInPolygon(latlng, feature) {
-      const pt = [latlng.lng, latlng.lat];
-      const poly = feature.geometry.coordinates[0];
-      let inside = false;
-      for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
-        const [xi, yi] = poly[i];
-        const [xj, yj] = poly[j];
-        const intersect = ((yi > pt[1]) !== (yj > pt[1])) &&
-          (pt[0] < (xj - xi) * (pt[1] - yi) / (yj - yi) + xi);
-        if (intersect) inside = !inside;
-      }
-      return inside;
-    }
-
-    function loadCatchments() {
-      statusEl.textContent = 'Loading catchments...';
-      debugLogMessage('Fetching ' + basePath + 'assets/catchments.json');
-      return fetch(basePath + 'assets/catchments.json')
-        .then(res => {
-          if (!res.ok) throw new Error('Catchments load failed: ' + res.status);
-          return res.json();
-        })
-        .then(geojson => {
-          catchmentsData = geojson.features;
-          L.geoJSON(geojson, {
-            style: { color: '#000', weight: 2, fillOpacity: 0, dashArray: '5,8', opacity:0.7 }
-          }).addTo(map).on('click', function(e) {
-            const latlng = e.latlng;
-            const overlapping = catchmentsData.filter(f => {
-              const bounds = L.geoJSON(f).getBounds();
-              return bounds.contains(latlng) && isPointInPolygon(latlng, f);
+      
+      // Initialize map with zoom controls
+      const map = L.map('map', {
+        zoomControl: false  // We'll add our custom positioned zoom control
+      }).setView([33.5186, -86.8104], 7);
+      
+      // Add zoom control to top-right
+      L.control.zoom({
+        position: 'topright'
+      }).addTo(map);
+      
+      // Add base tile layer
+      L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+        attribution: '&copy; OpenStreetMap &copy; CartoDB'
+      }).addTo(map);
+      
+      // Store catchments for overlap detection
+      let catchmentsLayer = null;
+      let catchmentsData = [];
+      let catchmentsTurfFeatures = [];
+      
+      // Load catchments as GeoJSON
+      function loadCatchments() {
+        statusEl.textContent = 'Loading catchments...';
+        debugLogMessage('Loading catchments from assets/catchments.json');
+        
+        return fetch('assets/catchments.json')
+          .then(response => {
+            if (!response.ok) throw new Error('Failed to load catchments: ' + response.status);
+            return response.json();
+          })
+          .then(geojson => {
+            statusEl.textContent = 'Rendering catchments...';
+            debugLogMessage('Catchments loaded successfully, rendering...');
+            catchmentsData = geojson.features;
+            
+            // Create Turf.js features for spatial analysis
+            catchmentsTurfFeatures = catchmentsData.map(feature => {
+              return {
+                feature: feature,
+                turfPolygon: turf.polygon(feature.geometry.coordinates)
+              };
             });
-            if (overlapping.length) {
-              const names = overlapping.map(f => f.properties.name || 'Unnamed').join('<br>');
-              L.popup().setLatLng(latlng).setContent(`<strong>Overlapping Catchments:</strong><br>${names}`).openOn(map);
+            
+            // Add catchments to map with black dashed borders and no fill
+            catchmentsLayer = L.geoJSON(geojson, {
+              style: { 
+                color: '#000000', // Black border
+                weight: 2, 
+                fillOpacity: 0,  // No fill
+                dashArray: '5, 8', // Dashed line
+                opacity: 0.7
+              },
+              onEachFeature: (feature, layer) => {
+                // Store reference to the original feature
+                layer.feature = feature;
+              }
+            }).addTo(map);
+            
+            // Add click handler for catchments
+            catchmentsLayer.on('click', function(e) {
+              const clickedLatLng = e.latlng;
+              
+              // Find all catchments that contain the clicked point using Turf.js
+              const overlappingCatchments = findOverlappingCatchments(clickedLatLng);
+              
+              if (overlappingCatchments.length > 0) {
+                showCatchmentsPopup(clickedLatLng, overlappingCatchments);
+              }
+            });
+            
+            statusEl.textContent = 'Catchments loaded successfully';
+            debugLogMessage('Catchments rendered on map');
+            return true;
+          });
+      }
+      
+      // Find all catchments that contain a given point using Turf.js
+      function findOverlappingCatchments(latlng) {
+        const overlapping = [];
+        const point = turf.point([latlng.lng, latlng.lat]);
+        
+        catchmentsTurfFeatures.forEach(({feature, turfPolygon}) => {
+          if (turf.booleanPointInPolygon(point, turfPolygon)) {
+            overlapping.push(feature);
+          }
+        });
+        
+        return overlapping;
+      }
+      
+      // Show popup with all overlapping catchments
+      function showCatchmentsPopup(latlng, catchments) {
+        let content = `<div class="catchment-popup-content">`;
+        content += `<strong>${catchments.length} Catchment${catchments.length > 1 ? 's' : ''} at this location:</strong><br><br>`;
+        
+        catchments.forEach((catchment, index) => {
+          const name = catchment.properties?.name || `Catchment ${index + 1}`;
+          content += `<div class="catchment-item">${name}</div>`;
+        });
+        
+        content += `</div>`;
+        
+        L.popup()
+          .setLatLng(latlng)
+          .setContent(content)
+          .openOn(map);
+      }
+      
+      // Initialize PMTiles functionality
+      function initPMTiles() {
+        if (typeof window.pmtiles === 'undefined') {
+          statusEl.textContent = 'PMTiles not available, using catchments only';
+          debugLogMessage('ERROR: PMTiles library not loaded');
+          showError('PMTiles Error', 'Hotspot data could not be loaded. Showing catchments only.');
+          return;
+        }
+        
+        try {
+          const PMTiles = window.pmtiles.PMTiles;
+          debugLogMessage('Initializing PMTiles protocol');
+          
+          // Create a new protocol instance
+          const protocol = new window.pmtiles.Protocol();
+          
+          // Create PMTiles instances - using direct file access
+          debugLogMessage('Loading PMTiles files directly...');
+          const pm95 = new PMTiles('assets/sc_acc_hot_spots_overlap_95.pmtiles');
+          const pm99 = new PMTiles('assets/sc_acc_hot_spots_overlap_99.pmtiles');
+          
+          // Register the protocol
+          window.pmtiles.registerProtocol(protocol);
+          
+          // Add the PMTiles sources to the protocol
+          protocol.add(pm95);
+          protocol.add(pm99);
+          
+          debugLogMessage('PMTiles protocol registered successfully');
+          setupHotspotLayers(pm95, pm99);
+          statusEl.textContent = 'PMTiles layers initialized';
+        } catch (error) {
+          console.error('Error initializing PMTiles:', error);
+          debugLogMessage('ERROR initializing PMTiles: ' + error.message);
+          statusEl.textContent = 'PMTiles initialization error: ' + error.message;
+          showError('PMTiles Error', 'Hotspot data could not be loaded. Showing catchments only.');
+        }
+      }
+      
+      function setupHotspotLayers(pm95, pm99) {
+        let currentLayer = null;
+        
+        function getColor(field, value) {
+          // Handle numeric fields
+          if (typeof value === 'number') {
+            if (field === 'COLON_SCRE') {
+              if (value >= 80) return '#08306b';
+              if (value >= 60) return '#2171b5';
+              if (value >= 40) return '#4292c6';
+              if (value >= 20) return '#6baed6';
+              return '#9ecae1';
+            }
+            if (field === 'fin100k') {
+              if (value >= 120) return '#4b0055';
+              if (value >= 90) return '#7a3290';
+              if (value >= 60) return '#985ea7';
+              if (value >= 30) return '#b68bc1';
+              return '#d5b6da';
+            }
+          }
+          
+          // Handle categorical field
+          if (field === 'overlap_type') {
+            if (value === 'Low Screening-Low Access Cluster') return '#d73027';
+            if (value === 'High Screening-High Access Cluster') return '#1a9850';
+            if (value === 'Non-significant') return '#999999';
+          }
+          return '#cccccc';
+        }
+
+        // Create a VectorGrid layer from PMTiles source
+        function createLayer(pmtilesSource, fieldKey) {
+          const baseField = fieldKey.replace(/_\d+$/, '');
+          debugLogMessage('Creating layer for field: ' + fieldKey);
+          
+          return L.vectorGrid.protobuf(pmtilesSource.getURLTemplate(), {
+            vectorTileLayerStyles: {
+              // Use wildcard to match any layer name
+              '*': feature => {
+                const value = feature.properties[fieldKey];
+                return {
+                  fillColor: getColor(baseField, value),
+                  fillOpacity: 0.8,
+                  color: '#444',
+                  weight: 0.3,
+                  opacity: 0.7
+                };
+              }
+            },
+            maxZoom: 18,
+            minZoom: 4,
+            interactive: true,
+            getFeatureId: f => f.properties.id || null
+          }).on('click', function(e) {
+            const props = e.layer.properties;
+            let content = `<div class="popup-content"><strong>Tract ${props.id || ''}</strong><br>`;
+            
+            // Show all relevant properties
+            if (props.COLON_SCRE_95 !== undefined) content += `95% CRC Screening: ${props.COLON_SCRE_95}%<br>`;
+            if (props.COLON_SCRE_99 !== undefined) content += `99% CRC Screening: ${props.COLON_SCRE_99}%<br>`;
+            if (props.fin100k_95 !== undefined) content += `95% Providers/100k: ${props.fin100k_95}<br>`;
+            if (props.fin100k_99 !== undefined) content += `99% Providers/100k: ${props.fin100k_99}<br>`;
+            if (props.overlap_type_95 !== undefined) content += `95% Overlap: ${props.overlap_type_95}<br>`;
+            if (props.overlap_type_99 !== undefined) content += `99% Overlap: ${props.overlap_type_99}<br>`;
+            
+            content += '</div>';
+            L.popup()
+              .setLatLng(e.latlng)
+              .setContent(content)
+              .openOn(map);
+          });
+        }
+
+        function updateLegend(fieldKey) {
+          const baseField = fieldKey.replace(/_\d+$/, '');
+          const legend = document.getElementById('legend-content');
+          let html = '';
+          
+          const confLevel = fieldKey.includes('_99') ? '99%' : '95%';
+
+          if (baseField === 'COLON_SCRE') {
+            html += `
+              <div class="legend-item"><span class="color-box" style="background:#08306b;"></span>≥ 80% (${confLevel})</div>
+              <div class="legend-item"><span class="color-box" style="background:#2171b5;"></span>60-79%</div>
+              <div class="legend-item"><span class="color-box" style="background:#4292c6;"></span>40-59%</div>
+              <div class="legend-item"><span class="color-box" style="background:#6baed6;"></span>20-39%</div>
+              <div class="legend-item"><span class="color-box" style="background:#9ecae1;"></span>0-19%</div>
+            `;
+          } else if (baseField === 'fin100k') {
+            html += `
+              <div class="legend-item"><span class="color-box" style="background:#4b0055;"></span>≥ 120 (${confLevel})</div>
+              <div class="legend-item"><span class="color-box" style="background:#7a3290;"></span>90-119</div>
+              <div class="legend-item"><span class="color-box" style="background:#985ea7;"></span>60-89</div>
+              <div class="legend-item"><span class="color-box" style="background:#b68bc1;"></span>30-59</div>
+              <div class="legend-item"><span class="color-box" style="background:#d5b6da;"></span>0-29</div>
+            `;
+          } else if (baseField === 'overlap_type') {
+            html += `
+              <div class="legend-item"><span class="color-box" style="background:#d73027;"></span>Low Screening-Low Access</div>
+              <div class="legend-item"><span class="color-box" style="background:#1a9850;"></span>High Screening-High Access</div>
+              <div class="legend-item"><span class="color-box" style="background:#999999;"></span>Non-significant</div>
+            `;
+          }
+
+          legend.innerHTML = html;
+        }
+
+        function switchLayer(fieldKey) {
+          if (currentLayer) {
+            map.removeLayer(currentLayer);
+          }
+          
+          try {
+            debugLogMessage('Switching to layer: ' + fieldKey);
+            const pmtilesSource = fieldKey.includes('_95') ? pm95 : pm99;
+            currentLayer = createLayer(pmtilesSource, fieldKey);
+            currentLayer.addTo(map);
+            
+            updateLegend(fieldKey);
+            statusEl.textContent = `Displaying ${fieldKey.replace('_', ' ')} data`;
+            debugLogMessage('Layer displayed successfully: ' + fieldKey);
+          } catch (error) {
+            console.error('Error switching layer:', error);
+            debugLogMessage('ERROR switching layer: ' + error.message);
+            statusEl.textContent = 'Error displaying hotspot data';
+            showError('Layer Error', 'Could not display the selected hotspot layer.');
+          }
+        }
+
+        // Setup radio buttons event listeners
+        document.querySelectorAll('input[name="tractField"]').forEach(radio => {
+          radio.addEventListener('change', e => {
+            if (e.target.checked) {
+              switchLayer(e.target.value);
             }
           });
-          statusEl.textContent = 'Catchments loaded';
         });
-    }
 
-    function initPMTiles() {
-      if (!window.pmtiles) {
-        statusEl.textContent = 'PMTiles not loaded';
-        debugLogMessage('PMTiles library missing');
-        return;
+        // Initialize with default layer
+        try {
+          debugLogMessage('Initializing default layer: COLON_SCRE_95');
+          switchLayer('COLON_SCRE_95');
+          statusEl.textContent = 'Map ready with hotspot data';
+        } catch (error) {
+          console.error('Error initializing default layer:', error);
+          debugLogMessage('ERROR initializing default layer: ' + error.message);
+          statusEl.textContent = 'Error loading default hotspot layer';
+        }
       }
-      try {
-        const PM = window.pmtiles.PMTiles;
-        const protocol = new window.pmtiles.Protocol();
-        const pm95 = new PM(basePath + 'assets/sc_acc_hot_spots_overlap_95.pmtiles');
-        const pm99 = new PM(basePath + 'assets/sc_acc_hot_spots_overlap_99.pmtiles');
-        window.pmtiles.registerProtocol(protocol);
-        protocol.add(pm95);
-        protocol.add(pm99);
-        setupHotspotLayers(pm95, pm99);
-        statusEl.textContent = 'PMTiles ready';
-      } catch (err) {
-        console.error(err);
-        statusEl.textContent = 'PMTiles error: ' + err.message;
-        debugLogMessage('PMTiles init failed: ' + err.message);
+      
+      function showError(title, message) {
+        // Remove any existing error panel
+        const existingError = document.querySelector('.error-panel');
+        if (existingError) {
+          existingError.remove();
+        }
+        
+        const errorPanel = document.createElement('div');
+        errorPanel.className = 'error-panel';
+        errorPanel.innerHTML = `
+          <h2>${title}</h2>
+          <p>${message}</p>
+          <button class="btn" onclick="this.parentElement.remove()">Dismiss</button>
+        `;
+        
+        document.body.appendChild(errorPanel);
       }
-    }
-
-    function setupHotspotLayers(pm95, pm99) {
-      let currentLayer = null;
-      function getColor(base, val) {
-        // Simplified, your color logic remains
-        return '#cccccc'; // placeholder logic here
-      }
-      function createLayer(src, fieldKey) {
-        const base = fieldKey.replace(/_\d+$/, '');
-        return L.vectorGrid.protobuf(src.getURLTemplate(), {
-          vectorTileLayerStyles: {
-            '*': f => {
-              const v = f.properties[fieldKey];
-              return { fillColor: getColor(base, v), fillOpacity: 0.8, color:'#444', weight:0.3, opacity:0.7 };
-            }
-          },
-          interactive: true,
-          getFeatureId: f => f.properties.id || null
-        }).on('click', e => {
-          const p = e.layer.properties;
-          let html = `<strong>Tract ${p.id || ''}</strong><br>`;
-          ['COLON_SCRE_95','COLON_SCRE_99','fin100k_95','fin100k_99','overlap_type_95','overlap_type_99'].forEach(k => {
-            if (p[k] !== undefined) html += `${k}: ${p[k]}<br>`;
-          });
-          L.popup().setLatLng(e.latlng).setContent(html).openOn(map);
+      
+      // Start the initialization process
+      loadCatchments()
+        .then(() => {
+          initPMTiles();
+        })
+        .catch(error => {
+          console.error('Error loading catchments:', error);
+          debugLogMessage('ERROR loading catchments: ' + error.message);
+          statusEl.textContent = 'Catchments load error: ' + error.message;
+          showError('Data Error', 'Failed to load catchment data.');
         });
-      }
-
-      function switchLayer(fieldKey) {
-        if (currentLayer) map.removeLayer(currentLayer);
-        const src = fieldKey.includes('_95') ? pm95 : pm99;
-        currentLayer = createLayer(src, fieldKey);
-        currentLayer.addTo(map);
-        statusEl.textContent = `Showing ${fieldKey}`;
-      }
-
-      document.querySelectorAll('input[name="tractField"]').forEach(r => {
-        r.addEventListener('change', e => r.checked && switchLayer(r.value));
-      });
-      switchLayer('COLON_SCRE_95');
-    }
-
-    loadCatchments().then(initPMTiles).catch(err => {
-      console.error(err);
-      statusEl.textContent = 'Error: ' + err.message;
-      debugLogMessage('Load error: ' + err.message);
     });
-  });
   </script>
 </body>
 </html>
