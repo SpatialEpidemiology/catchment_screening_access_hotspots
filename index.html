@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Catchments + Tracts PMTiles Map</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  
+  <!-- Leaflet CSS & JS -->
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css"
+  />
+  <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+  
+  <!-- jQuery for simplicity -->
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+  <!-- pmtiles-leaflet -->
+  <script src="https://unpkg.com/pmtiles-leaflet@0.2.3/dist/pmtiles-leaflet.min.js"></script>
+
+  <!-- topojson client -->
+  <script src="https://unpkg.com/topojson-client@3"></script>
+
+  <style>
+    html,
+    body {
+      height: 100%;
+      margin: 0;
+      padding: 0;
+    }
+    #map {
+      width: 100%;
+      height: 100%;
+    }
+    .controls {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      z-index: 1000;
+      background: rgba(255, 255, 255, 0.9);
+      padding: 8px;
+      border-radius: 4px;
+      font-family: Arial, sans-serif;
+      font-size: 14px;
+    }
+    .legend {
+      position: absolute;
+      bottom: 10px;
+      right: 10px;
+      z-index: 1000;
+      background: rgba(255, 255, 255, 0.9);
+      padding: 8px;
+      border-radius: 4px;
+      font-family: Arial, sans-serif;
+      font-size: 14px;
+      color: #555;
+      max-width: 200px;
+    }
+    .legend h4 {
+      margin: 0 0 6px 0;
+    }
+    .legend i {
+      width: 18px;
+      height: 18px;
+      float: left;
+      margin-right: 8px;
+      opacity: 0.7;
+    }
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+  <div class="controls">
+    <strong>Select Tract Field:</strong><br />
+    <input type="radio" name="tractField" id="field_colon_scre" value="COLON_SCRE" checked />
+    <label for="field_colon_scre">COLON_SCRE</label><br />
+    <input type="radio" name="tractField" id="field_fin100k" value="fin100k" />
+    <label for="field_fin100k">fin100k</label><br />
+    <input type="radio" name="tractField" id="field_overlap_type_95" value="overlap_type" />
+    <label for="field_overlap_type_95">overlap_type (Overlap 95)</label><br />
+    <input type="radio" name="tractField" id="field_overlap_type_99" value="overlap_type_99" />
+    <label for="field_overlap_type_99">overlap_type_99 (Overlap 99)</label>
+  </div>
+  <div class="legend" id="legend">
+    <h4>Cancer Center Catchments</h4>
+    <i style="background: #FF7F00"></i> Catchment Areas<br />
+    <h4>Tracts Color Scale</h4>
+    <i style="background: #1f78b4"></i> Low<br />
+    <i style="background: #a6cee3"></i> Medium<br />
+    <i style="background: #08306b"></i> High
+  </div>
+
+  <script>
+    // Initialize the map centered on Birmingham, AL
+    const map = L.map("map").setView([33.5186, -86.8104], 7);
+
+    // Add a base layer
+    const baseLayer = L.tileLayer(
+      "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
+      {
+        attribution:
+          '&copy; <a href="https://openstreetmap.org">OpenStreetMap</a> contributors, &copy; <a href="https://carto.com/">CartoDB</a>',
+      }
+    ).addTo(map);
+
+    // Load and add the catchments TopoJSON (always visible)
+    const catchmentsUrl = "catchments.json";
+
+    $.getJSON(catchmentsUrl, function (topoData) {
+      // Assume catchments layer is named 'catchments' inside the TopoJSON
+      const geojson = topojson.feature(topoData, topoData.objects.catchments);
+
+      const catchmentStyle = {
+        color: "#FF7F00",
+        weight: 2,
+        fillOpacity: 0.4,
+      };
+
+      L.geoJSON(geojson, {
+        style: catchmentStyle,
+        onEachFeature: (feature, layer) => {
+          if (feature.properties && feature.properties.name) {
+            layer.bindPopup(
+              `<strong>Catchment:</strong> ${feature.properties.name}`
+            );
+          }
+        },
+      }).addTo(map);
+    });
+
+    // PMTiles URLs for your tracts
+    const pmtiles95Url = "sc_acc_hot_spots_overlap_95.pmtiles";
+    const pmtiles99Url = "sc_acc_hot_spots_overlap_99.pmtiles";
+
+    // Create PMTiles layers (using pmtiles-leaflet)
+    const pmtiles95 = new PMTiles(pmtiles95Url);
+    const pmtilesLayer95 = L.pmTiles(pmtiles95, {
+      attribution: "Tracts Overlap 95",
+      maxZoom: 12,
+      minZoom: 4,
+    });
+
+    const pmtiles99 = new PMTiles(pmtiles99Url);
+    const pmtilesLayer99 = L.pmTiles(pmtiles99, {
+      attribution: "Tracts Overlap 99",
+      maxZoom: 12,
+      minZoom: 4,
+    });
+
+    // Layer to hold currently visible PMTiles vector tiles layer
+    let currentPmtilesLayer = pmtilesLayer95.addTo(map);
+
+    // Simple function to style vector tiles based on the selected field
+    function getColor(value) {
+      // Example color ramp - customize based on your data scale
+      if (value === null || value === undefined) return "#ccc";
+      if (typeof value === "number") {
+        if (value > 0.75) return "#08306b";
+        if (value > 0.4) return "#a6cee3";
+        return "#1f78b4";
+      }
+      // fallback for categorical values
+      if (typeof value === "string") {
+        if (value.toLowerCase().includes("high")) return "#08306b";
+        if (value.toLowerCase().includes("medium")) return "#a6cee3";
+        if (value.toLowerCase().includes("low")) return "#1f78b4";
+      }
+      return "#ccc";
+    }
+
+    // Vector tile style function based on selected property
+    function styleFeature(properties, field) {
+      const val = properties[field];
+      return {
+        fillColor: getColor(val),
+        fillOpacity: 0.7,
+        color: "#666",
+        weight: 1,
+      };
+    }
+
+    // Update vector tile style on layer with new field
+    function updatePmtilesLayerStyle(layer, field) {
+      // pmtiles-leaflet supports setStyle on vector tiles with style function
+      layer.setStyle((feature) => {
+        return styleFeature(feature.properties, field);
+      });
+    }
+
+    // When user changes radio button, update styling or layer shown
+    $("input[name='tractField']").on("change", function () {
+      const selectedField = $(this).val();
+
+      // For overlap_type (95) use pmtilesLayer95
+      if (selectedField === "overlap_type") {
+        if (map.hasLayer(pmtilesLayer99)) map.removeLayer(pmtilesLayer99);
+        if (!map.hasLayer(pmtilesLayer95)) pmtilesLayer95.addTo(map);
+        currentPmtilesLayer = pmtilesLayer95;
+        updatePmtilesLayerStyle(currentPmtilesLayer, selectedField);
+      }
+      // For overlap_type_99 use pmtilesLayer99
+      else if (selectedField === "overlap_type_99") {
+        if (map.hasLayer(pmtilesLayer95)) map.removeLayer(pmtilesLayer95);
+        if (!map.hasLayer(pmtilesLayer99)) pmtilesLayer99.addTo(map);
+        currentPmtilesLayer = pmtilesLayer99;
+        updatePmtilesLayerStyle(currentPmtilesLayer, selectedField);
+      }
+      // For COLON_SCRE or fin100k, always show pmtilesLayer95
+      else {
+        if (map.hasLayer(pmtilesLayer99)) map.removeLayer(pmtilesLayer99);
+        if (!map.hasLayer(pmtilesLayer95)) pmtilesLayer95.addTo(map);
+        currentPmtilesLayer = pmtilesLayer95;
+        updatePmtilesLayerStyle(currentPmtilesLayer, selectedField);
+      }
+    });
+
+    // Initially style layer with COLON_SCRE
+    updatePmtilesLayerStyle(currentPmtilesLayer, "COLON_SCRE");
+
+    // Add scale control
+    L.control.scale({ imperial: true, metric: true }).addTo(map);
+  </script>
+</body>
+</html>
