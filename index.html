@@ -80,22 +80,34 @@
   </div>
 
   <script>
+    // Access PMTiles constructor from global pmtiles object
+    const PMTiles = window.pmtiles?.PMTiles;
+    if (!PMTiles) {
+      console.error('PMTiles constructor not found.');
+    }
+
     const map = L.map('map').setView([33.5186, -86.8104], 7);
+
     L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
       attribution: '&copy; OpenStreetMap &copy; CartoDB'
     }).addTo(map);
 
-    // Load catchments TopoJSON and convert to GeoJSON
+    // Load catchments TopoJSON and convert to GeoJSON with only borders (no fill)
     fetch('assets/catchments.json')
       .then(r => r.json())
       .then(topology => {
         const geojson = topojson.feature(topology, topology.objects[Object.keys(topology.objects)[0]]);
         L.geoJSON(geojson, {
           style: { color: '#FF7F00', weight: 2, fillOpacity: 0 },
-          onEachFeature: (f, l) => f.properties?.name && l.bindPopup(f.properties.name)
+          onEachFeature: (feature, layer) => {
+            if (feature.properties?.name) {
+              layer.bindPopup(feature.properties.name);
+            }
+          }
         }).addTo(map);
       });
 
+    // Initialize PMTiles sources
     const pm95 = new PMTiles('assets/sc_acc_hot_spots_overlap_95.pmtiles');
     const pm99 = new PMTiles('assets/sc_acc_hot_spots_overlap_99.pmtiles');
 
@@ -117,22 +129,25 @@
         return '#d5b6da';
       }
       if (field === 'overlap_type') {
-        if (value === 'Low Screening-Low Access Cluster') return '#d73027';
-        if (value === 'High Screening-High Access Cluster') return '#6baed6';
-        if (value === 'Non-significant') return '#999999';
+        if (value === 'Low Screening-Low Access Cluster') return '#d73027'; // red
+        if (value === 'High Screening-High Access Cluster') return '#6baed6'; // light blue
+        if (value === 'Non-significant') return '#999999'; // grey
         return '#cccccc';
       }
       return '#cccccc';
     }
 
-    function createLayer(pmtiles, field) {
-      return L.vectorGrid.protobuf(pmtiles.getURLTemplate(), {
+    // Create a VectorGrid layer from PMTiles source and chosen field
+    function createLayer(pmtilesSource, fieldKey) {
+      return L.vectorGrid.protobuf(pmtilesSource.getURLTemplate(), {
         vectorTileLayerStyles: {
+          // Assuming vector tile layer name is "layer0"
           layer0: feature => {
-            const rawField = field.replace(/_\d+$/, '');
-            const value = feature.properties[rawField];
+            // Extract base field name without trailing _95 or _99
+            const baseField = fieldKey.replace(/_\d+$/, '');
+            const value = feature.properties[baseField];
             return {
-              fillColor: getColor(rawField, value),
+              fillColor: getColor(baseField, value),
               fillOpacity: 0.7,
               color: '#444',
               weight: 0.5
@@ -140,28 +155,30 @@
           }
         },
         maxZoom: 14,
-        minZoom: 4
+        minZoom: 4,
+        interactive: true,
+        getFeatureId: f => f.properties.id || null
       });
     }
 
     function updateLegend(fieldKey) {
-      const rawField = fieldKey.replace(/_\d+$/, '');
+      const baseField = fieldKey.replace(/_\d+$/, '');
       const legend = document.getElementById('legend-content');
       let html = '';
 
-      if (rawField === 'COLON_SCRE') {
+      if (baseField === 'COLON_SCRE') {
         html += '<div><span class="color-box" style="background:#08306b;"></span>> 80%</div>';
         html += '<div><span class="color-box" style="background:#2171b5;"></span>61–80%</div>';
         html += '<div><span class="color-box" style="background:#4292c6;"></span>41–60%</div>';
         html += '<div><span class="color-box" style="background:#6baed6;"></span>21–40%</div>';
         html += '<div><span class="color-box" style="background:#9ecae1;"></span>0–20%</div>';
-      } else if (rawField === 'fin100k') {
+      } else if (baseField === 'fin100k') {
         html += '<div><span class="color-box" style="background:#4b0055;"></span>> 120</div>';
         html += '<div><span class="color-box" style="background:#7a3290;"></span>91–120</div>';
         html += '<div><span class="color-box" style="background:#985ea7;"></span>61–90</div>';
         html += '<div><span class="color-box" style="background:#b68bc1;"></span>31–60</div>';
         html += '<div><span class="color-box" style="background:#d5b6da;"></span>0–30</div>';
-      } else if (rawField === 'overlap_type') {
+      } else if (baseField === 'overlap_type') {
         html += '<div><span class="color-box" style="background:#d73027;"></span>Low Screening-Low Access Cluster</div>';
         html += '<div><span class="color-box" style="background:#6baed6;"></span>High Screening-High Access Cluster</div>';
         html += '<div><span class="color-box" style="background:#999999;"></span>Non-significant</div>';
@@ -171,23 +188,26 @@
     }
 
     function switchLayer(fieldKey) {
-      if (currentLayer) map.removeLayer(currentLayer);
+      if (currentLayer) {
+        map.removeLayer(currentLayer);
+        currentLayer = null;
+      }
 
-      const pmtiles = fieldKey.includes('_95') ? pm95 : pm99;
-      currentLayer = createLayer(pmtiles, fieldKey).addTo(map);
+      const pmtilesSource = fieldKey.includes('_95') ? pm95 : pm99;
+      currentLayer = createLayer(pmtilesSource, fieldKey).addTo(map);
       updateLegend(fieldKey);
     }
 
-    // Setup radio change listeners
+    // Setup radio buttons event listeners
     document.querySelectorAll('input[name="tractField"]').forEach(radio => {
-      radio.addEventListener('change', function() {
-        if (this.checked) {
-          switchLayer(this.value);
+      radio.addEventListener('change', e => {
+        if (e.target.checked) {
+          switchLayer(e.target.value);
         }
       });
     });
 
-    // Load initial layer
+    // Initialize map with default layer
     switchLayer('COLON_SCRE_95');
   </script>
 </body>
