@@ -2,217 +2,212 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>Catchments + Tracts PMTiles Map</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  
-  <!-- Leaflet CSS & JS -->
-  <link
-    rel="stylesheet"
-    href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css"
-  />
+  <title>Cancer Center Catchments Map</title>
+
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
   <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
-  
-  <!-- jQuery for simplicity -->
   <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-
-  <!-- pmtiles-leaflet -->
+  <script src="https://unpkg.com/pmtiles@3.1.2/dist/pmtiles.js"></script>
   <script src="https://unpkg.com/pmtiles-leaflet@0.2.3/dist/pmtiles-leaflet.min.js"></script>
-
-  <!-- topojson client -->
-  <script src="https://unpkg.com/topojson-client@3"></script>
+  <script src="https://unpkg.com/leaflet.vectorgrid@1.3.0/dist/Leaflet.VectorGrid.bundled.js"></script>
 
   <style>
-    html,
-    body {
-      height: 100%;
-      margin: 0;
-      padding: 0;
-    }
-    #map {
-      width: 100%;
-      height: 100%;
-    }
-    .controls {
+    html, body, #map { height: 100%; margin: 0; padding: 0; }
+    #map { width: 100%; }
+
+    .control-panel {
       position: absolute;
-      top: 10px;
-      left: 10px;
-      z-index: 1000;
-      background: rgba(255, 255, 255, 0.9);
-      padding: 8px;
-      border-radius: 4px;
+      top: 10px; left: 10px;
+      background: rgba(255,255,255,0.9);
+      padding: 10px;
+      max-width: 300px;
       font-family: Arial, sans-serif;
-      font-size: 14px;
+      font-size: 13px;
+      border-radius: 4px;
+      z-index: 1000;
     }
+
+    .control-panel h4 {
+      margin: 6px 0 4px;
+      font-weight: bold;
+    }
+
     .legend {
       position: absolute;
-      bottom: 10px;
-      right: 10px;
-      z-index: 1000;
-      background: rgba(255, 255, 255, 0.9);
-      padding: 8px;
-      border-radius: 4px;
+      bottom: 20px;
+      right: 20px;
+      background: rgba(255,255,255,0.85);
+      padding: 10px 12px;
       font-family: Arial, sans-serif;
-      font-size: 14px;
-      color: #555;
-      max-width: 200px;
+      font-size: 13px;
+      color: #333;
+      border-radius: 5px;
+      line-height: 1.4;
+      z-index: 1000;
     }
+
     .legend h4 {
-      margin: 0 0 6px 0;
+      margin-top: 0;
+      font-size: 14px;
     }
-    .legend i {
+
+    .legend .color-box {
+      display: inline-block;
       width: 18px;
       height: 18px;
-      float: left;
-      margin-right: 8px;
-      opacity: 0.7;
+      margin-right: 6px;
+      vertical-align: middle;
     }
   </style>
 </head>
 <body>
-  <div id="map"></div>
-  <div class="controls">
-    <strong>Select Tract Field:</strong><br />
-    <input type="radio" name="tractField" id="field_colon_scre" value="COLON_SCRE" checked />
-    <label for="field_colon_scre">COLON_SCRE</label><br />
-    <input type="radio" name="tractField" id="field_fin100k" value="fin100k" />
-    <label for="field_fin100k">fin100k</label><br />
-    <input type="radio" name="tractField" id="field_overlap_type_95" value="overlap_type" />
-    <label for="field_overlap_type_95">overlap_type (Overlap 95)</label><br />
-    <input type="radio" name="tractField" id="field_overlap_type_99" value="overlap_type_99" />
-    <label for="field_overlap_type_99">overlap_type_99 (Overlap 99)</label>
+
+<div id="map"></div>
+
+<div class="control-panel">
+  <h4>Tract Fields – Select One</h4>
+  <div>
+    <strong>Overlap 95</strong><br/>
+    <label><input type="radio" name="tractField" value="COLON_SCRE_95" checked> CRC screening (%)</label><br/>
+    <label><input type="radio" name="tractField" value="fin100k_95"> Primary care providers per 100k</label><br/>
+    <label><input type="radio" name="tractField" value="overlap_type_95"> Overlap Type</label>
   </div>
-  <div class="legend" id="legend">
-    <h4>Cancer Center Catchments</h4>
-    <i style="background: #FF7F00"></i> Catchment Areas<br />
-    <h4>Tracts Color Scale</h4>
-    <i style="background: #1f78b4"></i> Low<br />
-    <i style="background: #a6cee3"></i> Medium<br />
-    <i style="background: #08306b"></i> High
+  <hr />
+  <div>
+    <strong>Overlap 99</strong><br/>
+    <label><input type="radio" name="tractField" value="COLON_SCRE_99"> CRC screening (%)</label><br/>
+    <label><input type="radio" name="tractField" value="fin100k_99"> Primary care providers per 100k</label><br/>
+    <label><input type="radio" name="tractField" value="overlap_type_99"> Overlap Type</label>
   </div>
+</div>
 
-  <script>
-    // Initialize the map centered on Birmingham, AL
-    const map = L.map("map").setView([33.5186, -86.8104], 7);
+<div id="legend" class="legend">
+  <h4>Legend</h4>
+  <div id="legend-content">Loading...</div>
+</div>
 
-    // Add a base layer
-    const baseLayer = L.tileLayer(
-      "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
-      {
-        attribution:
-          '&copy; <a href="https://openstreetmap.org">OpenStreetMap</a> contributors, &copy; <a href="https://carto.com/">CartoDB</a>',
-      }
-    ).addTo(map);
+<script>
+  const map = L.map("map").setView([33.5, -86.8], 7);
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+    attribution: '&copy; OpenStreetMap &copy; CartoDB',
+    maxZoom: 19
+  }).addTo(map);
 
-    // Load and add the catchments TopoJSON (always visible)
-    const catchmentsUrl = "assets/catchments.json";
-
-    $.getJSON(catchmentsUrl, function (topoData) {
-      // Assume catchments layer is named 'catchments' inside the TopoJSON
-      const geojson = topojson.feature(topoData, topoData.objects.catchments);
-
-      const catchmentStyle = {
-        color: "#FF7F00",
-        weight: 2,
-        fillOpacity: 0.4,
-      };
-
-      L.geoJSON(geojson, {
-        style: catchmentStyle,
-        onEachFeature: (feature, layer) => {
-          if (feature.properties && feature.properties.name) {
-            layer.bindPopup(
-              `<strong>Catchment:</strong> ${feature.properties.name}`
-            );
-          }
+  // --- Catchments as boundary lines only ---
+  fetch('assets/catchments.json')
+    .then(res => res.json())
+    .then(data => {
+      L.geoJSON(data, {
+        style: {
+          color: "#FF7F00",
+          weight: 2,
+          fillOpacity: 0
         },
+        onEachFeature: (feature, layer) => {
+          const name = feature.properties?.name;
+          if (name) layer.bindPopup(`<strong>Catchment:</strong> ${name}`);
+        }
       }).addTo(map);
     });
 
-    // PMTiles URLs for your tracts
-    const pmtiles95Url = "assets/sc_acc_hot_spots_overlap_95.pmtiles";
-    const pmtiles99Url = "assets/sc_acc_hot_spots_overlap_99.pmtiles";
+  // --- Load PMTiles ---
+  const pmtiles95 = new PMTiles("assets/sc_acc_hot_spots_overlap_95.pmtiles");
+  const pmtiles99 = new PMTiles("assets/sc_acc_hot_spots_overlap_99.pmtiles");
 
-    // Create PMTiles layers (using pmtiles-leaflet)
-    const pmtiles95 = new PMTiles(pmtiles95Url);
-    const pmtilesLayer95 = L.pmTiles(pmtiles95, {
-      attribution: "Tracts Overlap 95",
-      maxZoom: 12,
-      minZoom: 4,
-    });
+  let currentVectorGridLayer = null;
 
-    const pmtiles99 = new PMTiles(pmtiles99Url);
-    const pmtilesLayer99 = L.pmTiles(pmtiles99, {
-      attribution: "Tracts Overlap 99",
-      maxZoom: 12,
-      minZoom: 4,
-    });
-
-    // Layer to hold currently visible PMTiles vector tiles layer
-    let currentPmtilesLayer = pmtilesLayer95.addTo(map);
-
-    // Simple function to style vector tiles based on the selected field
-    function getColor(value) {
-      // Example color ramp - customize based on your data scale
-      if (value === null || value === undefined) return "#ccc";
-      if (typeof value === "number") {
-        if (value > 0.75) return "#08306b";
-        if (value > 0.4) return "#a6cee3";
-        return "#1f78b4";
+  function getColor(field, value) {
+    if (field.startsWith("COLON_SCRE")) {
+      if (value > 80) return "#08306b";
+      if (value > 60) return "#2171b5";
+      if (value > 40) return "#4292c6";
+      if (value > 20) return "#6baed6";
+      return "#9ecae1";
+    }
+    if (field.startsWith("fin100k")) {
+      if (value > 120) return "#4b0055";
+      if (value > 90) return "#7a3290";
+      if (value > 60) return "#985ea7";
+      if (value > 30) return "#b68bc1";
+      return "#d5b6da";
+    }
+    if (field.startsWith("overlap_type")) {
+      switch (value) {
+        case "Non-significant": return "#999999";
+        case "High Screening-High Access Cluster": return "#6baed6";
+        case "Low Screening-Low Access Cluster": return "#d73027";
+        default: return "#ccc";
       }
-      // fallback for categorical values
-      if (typeof value === "string") {
-        if (value.toLowerCase().includes("high")) return "#08306b";
-        if (value.toLowerCase().includes("medium")) return "#a6cee3";
-        if (value.toLowerCase().includes("low")) return "#1f78b4";
-      }
-      return "#ccc";
+    }
+    return "#ccc";
+  }
+
+  function createVectorGrid(pmtiles, field) {
+    return L.vectorGrid.protobuf(pmtiles.getURLTemplate(), {
+      vectorTileLayerStyles: {
+        layer0: props => {
+          const val = props[field];
+          return {
+            fillColor: getColor(field, val),
+            fillOpacity: 0.7,
+            color: "#444",
+            weight: 0.5
+          };
+        }
+      },
+      interactive: true,
+      maxZoom: 14
+    });
+  }
+
+  function updateLegend(fieldKey) {
+    const legend = document.getElementById("legend-content");
+    let html = "";
+
+    if (fieldKey.startsWith("COLON_SCRE")) {
+      html += `<div><span class="color-box" style="background:#08306b;"></span> > 80%</div>`;
+      html += `<div><span class="color-box" style="background:#2171b5;"></span> 61–80%</div>`;
+      html += `<div><span class="color-box" style="background:#4292c6;"></span> 41–60%</div>`;
+      html += `<div><span class="color-box" style="background:#6baed6;"></span> 21–40%</div>`;
+      html += `<div><span class="color-box" style="background:#9ecae1;"></span> 0–20%</div>`;
+    } else if (fieldKey.startsWith("fin100k")) {
+      html += `<div><span class="color-box" style="background:#4b0055;"></span> > 120</div>`;
+      html += `<div><span class="color-box" style="background:#7a3290;"></span> 91–120</div>`;
+      html += `<div><span class="color-box" style="background:#985ea7;"></span> 61–90</div>`;
+      html += `<div><span class="color-box" style="background:#b68bc1;"></span> 31–60</div>`;
+      html += `<div><span class="color-box" style="background:#d5b6da;"></span> 0–30</div>`;
+    } else if (fieldKey.startsWith("overlap_type")) {
+      html += `<div><span class="color-box" style="background:#d73027;"></span> Low Screening-Low Access Cluster</div>`;
+      html += `<div><span class="color-box" style="background:#6baed6;"></span> High Screening-High Access Cluster</div>`;
+      html += `<div><span class="color-box" style="background:#999999;"></span> Non-significant</div>`;
     }
 
-    // Vector tile style function based on selected property
-    function styleFeature(properties, field) {
-      const val = properties[field];
-      return {
-        fillColor: getColor(val),
-        fillOpacity: 0.7,
-        color: "#666",
-        weight: 1,
-      };
+    legend.innerHTML = html;
+  }
+
+  function switchVectorGrid(fieldKey) {
+    if (currentVectorGridLayer) {
+      map.removeLayer(currentVectorGridLayer);
     }
 
-    // Update vector tile style on layer with new field
-    function updatePmtilesLayerStyle(layer, field) {
-      layer.setStyle((feature) => {
-        return styleFeature(feature.properties, field);
-      });
-    }
+    const is95 = fieldKey.endsWith("_95");
+    const is99 = fieldKey.endsWith("_99");
+    const field = fieldKey.replace("_95", "").replace("_99", "");
+    const pmtiles = is95 ? pmtiles95 : pmtiles99;
 
-    // When user changes radio button, update styling or layer shown
-    $("input[name='tractField']").on("change", function () {
-      const selectedField = $(this).val();
+    currentVectorGridLayer = createVectorGrid(pmtiles, field).addTo(map);
+    updateLegend(fieldKey);
+  }
 
-      if (selectedField === "overlap_type") {
-        if (map.hasLayer(pmtilesLayer99)) map.removeLayer(pmtilesLayer99);
-        if (!map.hasLayer(pmtilesLayer95)) pmtilesLayer95.addTo(map);
-        currentPmtilesLayer = pmtilesLayer95;
-        updatePmtilesLayerStyle(currentPmtilesLayer, selectedField);
-      } else if (selectedField === "overlap_type_99") {
-        if (map.hasLayer(pmtilesLayer95)) map.removeLayer(pmtilesLayer95);
-        if (!map.hasLayer(pmtilesLayer99)) pmtilesLayer99.addTo(map);
-        currentPmtilesLayer = pmtilesLayer99;
-        updatePmtilesLayerStyle(currentPmtilesLayer, selectedField);
-      } else {
-        if (map.hasLayer(pmtilesLayer99)) map.removeLayer(pmtilesLayer99);
-        if (!map.hasLayer(pmtilesLayer95)) pmtilesLayer95.addTo(map);
-        currentPmtilesLayer = pmtilesLayer95;
-        updatePmtilesLayerStyle(currentPmtilesLayer, selectedField);
-      }
-    });
+  // Radio change
+  $("input[name='tractField']").on("change", function () {
+    switchVectorGrid(this.value);
+  });
 
-    // Initially style layer with COLON_SCRE
-    updatePmtilesLayerStyle(currentPmtilesLayer, "COLON_SCRE");
+  // Init
+  switchVectorGrid("COLON_SCRE_95");
+</script>
 
-    // Add scale control
-    L.control.scale({ imperial: true, metric: true }).addTo(map);
-  </script>
 </body>
 </html>
