@@ -15,200 +15,371 @@
   <!-- PMTiles -->
   <script src="https://unpkg.com/pmtiles@3.1.2/dist/umd/index.js"></script>
 
-  <!-- TopoJSON -->
-  <script src="https://unpkg.com/topojson-client@3"></script>
-
   <!-- VectorGrid -->
   <script src="https://unpkg.com/leaflet.vectorgrid@1.3.0/dist/Leaflet.VectorGrid.bundled.js"></script>
 
   <style>
-    html, body, #map { height: 100%; margin: 0; padding: 0; }
-    #map { width: 100%; }
+    html, body, #map { 
+      height: 100%; 
+      margin: 0; 
+      padding: 0; 
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+    
+    #map { 
+      width: 100%; 
+      background: #f0f5f9;
+    }
 
     .control-panel {
       position: absolute;
-      top: 10px; left: 10px;
-      background: rgba(255,255,255,0.9);
-      padding: 10px;
-      font-family: Arial, sans-serif;
+      top: 10px; 
+      left: 10px;
+      background: rgba(255, 255, 255, 0.95);
+      padding: 15px;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
       font-size: 14px;
-      border-radius: 4px;
+      border-radius: 8px;
       z-index: 1000;
-      max-width: 240px;
+      max-width: 260px;
+      box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);
+      border: 1px solid #ddd;
+    }
+    
+    .control-panel h3 {
+      margin-top: 0;
+      color: #2c3e50;
+      border-bottom: 1px solid #eee;
+      padding-bottom: 8px;
     }
 
     .legend {
       position: absolute;
-      bottom: 20px; right: 20px;
-      background: rgba(255,255,255,0.9);
-      padding: 10px;
-      font-family: Arial, sans-serif;
+      bottom: 20px; 
+      right: 20px;
+      background: rgba(255, 255, 255, 0.95);
+      padding: 15px;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
       font-size: 14px;
-      border-radius: 4px;
+      border-radius: 8px;
       z-index: 1000;
       max-width: 300px;
+      box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);
+      border: 1px solid #ddd;
+    }
+    
+    .legend h3 {
+      margin-top: 0;
+      color: #2c3e50;
+      border-bottom: 1px solid #eee;
+      padding-bottom: 8px;
     }
 
     .legend .color-box {
       display: inline-block;
-      width: 18px; height: 18px;
-      margin-right: 6px;
+      width: 20px; 
+      height: 20px;
+      margin-right: 8px;
       vertical-align: middle;
+      border-radius: 3px;
+      border: 1px solid rgba(0, 0, 0, 0.2);
+    }
+    
+    .legend-item {
+      margin: 5px 0;
+      display: flex;
+      align-items: center;
+    }
+    
+    .radio-group {
+      margin-bottom: 15px;
+    }
+    
+    label {
+      display: flex;
+      align-items: center;
+      margin: 5px 0;
+      cursor: pointer;
+      transition: all 0.2s;
+      padding: 5px;
+      border-radius: 4px;
+    }
+    
+    label:hover {
+      background: #f1f8ff;
+    }
+    
+    input[type="radio"] {
+      margin-right: 8px;
+    }
+    
+    .title-bar {
+      position: absolute;
+      top: 10px;
+      left: 0;
+      right: 0;
+      text-align: center;
+      z-index: 1000;
+    }
+    
+    .title-bar h1 {
+      display: inline-block;
+      background: rgba(255, 255, 255, 0.9);
+      padding: 10px 25px;
+      border-radius: 30px;
+      font-size: 1.4em;
+      color: #2c3e50;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      margin: 0;
+    }
+    
+    .status-bar {
+      position: absolute;
+      bottom: 10px;
+      left: 10px;
+      background: rgba(255, 255, 255, 0.9);
+      padding: 8px 15px;
+      border-radius: 4px;
+      font-size: 12px;
+      z-index: 1000;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
     }
   </style>
 </head>
 <body>
+  <div class="title-bar">
+    <h1>Healthcare Access & Screening Hotspots</h1>
+  </div>
+  
   <div id="map"></div>
 
   <div class="control-panel">
-    <strong>95% Hotspot Tracts</strong><br/>
-    <label><input type="radio" name="tractField" value="COLON_SCRE_95" checked> CRC screening (%)</label><br/>
-    <label><input type="radio" name="tractField" value="fin100k_95"> Primary care providers per 100k</label><br/>
-    <label><input type="radio" name="tractField" value="overlap_type_95"> Access-screening overlap</label>
+    <h3>95% Hotspot Tracts</h3>
+    <div class="radio-group">
+      <label><input type="radio" name="tractField" value="COLON_SCRE_95" checked> CRC screening (%)</label>
+      <label><input type="radio" name="tractField" value="fin100k_95"> Primary care providers per 100k</label>
+      <label><input type="radio" name="tractField" value="overlap_type_95"> Access-screening overlap</label>
+    </div>
 
-    <hr/>
-
-    <strong>99% Hotspot Tracts</strong><br/>
-    <label><input type="radio" name="tractField" value="COLON_SCRE_99"> CRC screening (%)</label><br/>
-    <label><input type="radio" name="tractField" value="fin100k_99"> Primary care providers per 100k</label><br/>
-    <label><input type="radio" name="tractField" value="overlap_type_99"> Access-screening overlap</label>
+    <h3>99% Hotspot Tracts</h3>
+    <div class="radio-group">
+      <label><input type="radio" name="tractField" value="COLON_SCRE_99"> CRC screening (%)</label>
+      <label><input type="radio" name="tractField" value="fin100k_99"> Primary care providers per 100k</label>
+      <label><input type="radio" name="tractField" value="overlap_type_99"> Access-screening overlap</label>
+    </div>
   </div>
 
   <div class="legend">
-    <strong>Legend</strong>
+    <h3>Legend</h3>
     <div id="legend-content"></div>
+  </div>
+  
+  <div class="status-bar">
+    <span id="status">Loading map data...</span>
   </div>
 
   <script>
-    // Access PMTiles constructor from global pmtiles object
-    const PMTiles = window.pmtiles?.PMTiles;
-    if (!PMTiles) {
-      console.error('PMTiles constructor not found.');
-    }
-
-    const map = L.map('map').setView([33.5186, -86.8104], 7);
-
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-      attribution: '&copy; OpenStreetMap &copy; CartoDB'
-    }).addTo(map);
-
-    // Load catchments TopoJSON and convert to GeoJSON with only borders (no fill)
-    fetch('assets/catchments.json')
-      .then(r => r.json())
-      .then(topology => {
-        const geojson = topojson.feature(topology, topology.objects[Object.keys(topology.objects)[0]]);
-        L.geoJSON(geojson, {
-          style: { color: '#FF7F00', weight: 2, fillOpacity: 0 },
-          onEachFeature: (feature, layer) => {
-            if (feature.properties?.name) {
-              layer.bindPopup(feature.properties.name);
-            }
-          }
-        }).addTo(map);
-      });
-
-    // Initialize PMTiles sources
-    const pm95 = new PMTiles('assets/sc_acc_hot_spots_overlap_95.pmtiles');
-    const pm99 = new PMTiles('assets/sc_acc_hot_spots_overlap_99.pmtiles');
-
-    let currentLayer;
-
-    function getColor(field, value) {
-      if (field === 'COLON_SCRE') {
-        if (value > 80) return '#08306b';
-        if (value > 60) return '#2171b5';
-        if (value > 40) return '#4292c6';
-        if (value > 20) return '#6baed6';
-        return '#9ecae1';
-      }
-      if (field === 'fin100k') {
-        if (value > 120) return '#4b0055';
-        if (value > 90) return '#7a3290';
-        if (value > 60) return '#985ea7';
-        if (value > 30) return '#b68bc1';
-        return '#d5b6da';
-      }
-      if (field === 'overlap_type') {
-        if (value === 'Low Screening-Low Access Cluster') return '#d73027'; // red
-        if (value === 'High Screening-High Access Cluster') return '#6baed6'; // light blue
-        if (value === 'Non-significant') return '#999999'; // grey
-        return '#cccccc';
-      }
-      return '#cccccc';
-    }
-
-    // Create a VectorGrid layer from PMTiles source and chosen field
-    function createLayer(pmtilesSource, fieldKey) {
-      return L.vectorGrid.protobuf(pmtilesSource.getURLTemplate(), {
-        vectorTileLayerStyles: {
-          // Assuming vector tile layer name is "layer0"
-          layer0: feature => {
-            // Extract base field name without trailing _95 or _99
-            const baseField = fieldKey.replace(/_\d+$/, '');
-            const value = feature.properties[baseField];
-            return {
-              fillColor: getColor(baseField, value),
-              fillOpacity: 0.7,
-              color: '#444',
-              weight: 0.5
-            };
-          }
-        },
-        maxZoom: 14,
-        minZoom: 4,
-        interactive: true,
-        getFeatureId: f => f.properties.id || null
-      });
-    }
-
-    function updateLegend(fieldKey) {
-      const baseField = fieldKey.replace(/_\d+$/, '');
-      const legend = document.getElementById('legend-content');
-      let html = '';
-
-      if (baseField === 'COLON_SCRE') {
-        html += '<div><span class="color-box" style="background:#08306b;"></span>> 80%</div>';
-        html += '<div><span class="color-box" style="background:#2171b5;"></span>61–80%</div>';
-        html += '<div><span class="color-box" style="background:#4292c6;"></span>41–60%</div>';
-        html += '<div><span class="color-box" style="background:#6baed6;"></span>21–40%</div>';
-        html += '<div><span class="color-box" style="background:#9ecae1;"></span>0–20%</div>';
-      } else if (baseField === 'fin100k') {
-        html += '<div><span class="color-box" style="background:#4b0055;"></span>> 120</div>';
-        html += '<div><span class="color-box" style="background:#7a3290;"></span>91–120</div>';
-        html += '<div><span class="color-box" style="background:#985ea7;"></span>61–90</div>';
-        html += '<div><span class="color-box" style="background:#b68bc1;"></span>31–60</div>';
-        html += '<div><span class="color-box" style="background:#d5b6da;"></span>0–30</div>';
-      } else if (baseField === 'overlap_type') {
-        html += '<div><span class="color-box" style="background:#d73027;"></span>Low Screening-Low Access Cluster</div>';
-        html += '<div><span class="color-box" style="background:#6baed6;"></span>High Screening-High Access Cluster</div>';
-        html += '<div><span class="color-box" style="background:#999999;"></span>Non-significant</div>';
-      }
-
-      legend.innerHTML = html;
-    }
-
-    function switchLayer(fieldKey) {
-      if (currentLayer) {
-        map.removeLayer(currentLayer);
-        currentLayer = null;
-      }
-
-      const pmtilesSource = fieldKey.includes('_95') ? pm95 : pm99;
-      currentLayer = createLayer(pmtilesSource, fieldKey).addTo(map);
-      updateLegend(fieldKey);
-    }
-
-    // Setup radio buttons event listeners
-    document.querySelectorAll('input[name="tractField"]').forEach(radio => {
-      radio.addEventListener('change', e => {
-        if (e.target.checked) {
-          switchLayer(e.target.value);
+    document.addEventListener('DOMContentLoaded', function() {
+      const statusEl = document.getElementById('status');
+      
+      try {
+        // Access PMTiles constructor
+        const PMTiles = window.pmtiles?.PMTiles;
+        if (!PMTiles) {
+          throw new Error('PMTiles library failed to load');
         }
-      });
-    });
+        
+        // Initialize map
+        const map = L.map('map').setView([33.5186, -86.8104], 7);
+        
+        // Add base tile layer
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+          attribution: '&copy; OpenStreetMap &copy; CartoDB'
+        }).addTo(map);
+        
+        statusEl.textContent = 'Loading catchments...';
+        
+        // Load catchments as GeoJSON
+        fetch('assets/catchments.json')
+          .then(response => {
+            if (!response.ok) throw new Error('Failed to load catchments');
+            return response.json();
+          })
+          .then(geojson => {
+            statusEl.textContent = 'Rendering catchments...';
+            
+            // Add catchments to map
+            L.geoJSON(geojson, {
+              style: { 
+                color: '#3498db', 
+                weight: 3, 
+                fillOpacity: 0,
+                dashArray: '5, 8'
+              },
+              onEachFeature: (feature, layer) => {
+                if (feature.properties?.name) {
+                  layer.bindPopup(`<strong>Catchment:</strong> ${feature.properties.name}`);
+                }
+              }
+            }).addTo(map);
+            
+            statusEl.textContent = 'Setting up hotspot layers...';
+            
+            // Initialize PMTiles sources
+            const pm95 = new PMTiles('assets/sc_acc_hot_spots_overlap_95.pmtiles');
+            const pm99 = new PMTiles('assets/sc_acc_hot_spots_overlap_99.pmtiles');
+            
+            // Register PMTiles protocol
+            const protocol = new pmtiles.Protocol();
+            pmtiles.registerProtocol(protocol);
+            protocol.add(pm95);
+            protocol.add(pm99);
+            
+            let currentLayer = null;
+            
+            function getColor(field, value) {
+              // Handle numeric fields
+              if (typeof value === 'number') {
+                if (field === 'COLON_SCRE') {
+                  if (value >= 80) return '#08306b';
+                  if (value >= 60) return '#2171b5';
+                  if (value >= 40) return '#4292c6';
+                  if (value >= 20) return '#6baed6';
+                  return '#9ecae1';
+                }
+                if (field === 'fin100k') {
+                  if (value >= 120) return '#4b0055';
+                  if (value >= 90) return '#7a3290';
+                  if (value >= 60) return '#985ea7';
+                  if (value >= 30) return '#b68bc1';
+                  return '#d5b6da';
+                }
+              }
+              
+              // Handle categorical field
+              if (field === 'overlap_type') {
+                if (value === 'Low Screening-Low Access Cluster') return '#d73027';
+                if (value === 'High Screening-High Access Cluster') return '#1a9850';
+                if (value === 'Non-significant') return '#999999';
+              }
+              return '#cccccc';
+            }
 
-    // Initialize map with default layer
-    switchLayer('COLON_SCRE_95');
+            // Create a VectorGrid layer from PMTiles source
+            function createLayer(pmtilesSource, fieldKey) {
+              const baseField = fieldKey.replace(/_\d+$/, '');
+              
+              return L.vectorGrid.protobuf(pmtilesSource.getURLTemplate(), {
+                vectorTileLayerStyles: {
+                  // Use wildcard to match any layer name
+                  '*': feature => {
+                    const value = feature.properties[fieldKey];
+                    return {
+                      fillColor: getColor(baseField, value),
+                      fillOpacity: 0.8,
+                      color: '#444',
+                      weight: 0.3,
+                      opacity: 0.7
+                    };
+                  }
+                },
+                maxZoom: 18,
+                minZoom: 4,
+                interactive: true,
+                getFeatureId: f => f.properties.id || null
+              }).on('click', function(e) {
+                const props = e.layer.properties;
+                let content = `<div class="popup-content"><strong>Tract ${props.id || ''}</strong><br>`;
+                
+                // Show all relevant properties
+                if (props.COLON_SCRE_95 !== undefined) content += `95% CRC Screening: ${props.COLON_SCRE_95}%<br>`;
+                if (props.COLON_SCRE_99 !== undefined) content += `99% CRC Screening: ${props.COLON_SCRE_99}%<br>`;
+                if (props.fin100k_95 !== undefined) content += `95% Providers/100k: ${props.fin100k_95}<br>`;
+                if (props.fin100k_99 !== undefined) content += `99% Providers/100k: ${props.fin100k_99}<br>`;
+                if (props.overlap_type_95 !== undefined) content += `95% Overlap: ${props.overlap_type_95}<br>`;
+                if (props.overlap_type_99 !== undefined) content += `99% Overlap: ${props.overlap_type_99}<br>`;
+                
+                content += '</div>';
+                L.popup()
+                  .setLatLng(e.latlng)
+                  .setContent(content)
+                  .openOn(map);
+              });
+            }
+
+            function updateLegend(fieldKey) {
+              const baseField = fieldKey.replace(/_\d+$/, '');
+              const legend = document.getElementById('legend-content');
+              let html = '';
+              
+              const confLevel = fieldKey.includes('_99') ? '99%' : '95%';
+
+              if (baseField === 'COLON_SCRE') {
+                html += `
+                  <div class="legend-item"><span class="color-box" style="background:#08306b;"></span>≥ 80% (${confLevel})</div>
+                  <div class="legend-item"><span class="color-box" style="background:#2171b5;"></span>60-79%</div>
+                  <div class="legend-item"><span class="color-box" style="background:#4292c6;"></span>40-59%</div>
+                  <div class="legend-item"><span class="color-box" style="background:#6baed6;"></span>20-39%</div>
+                  <div class="legend-item"><span class="color-box" style="background:#9ecae1;"></span>0-19%</div>
+                `;
+              } else if (baseField === 'fin100k') {
+                html += `
+                  <div class="legend-item"><span class="color-box" style="background:#4b0055;"></span>≥ 120 (${confLevel})</div>
+                  <div class="legend-item"><span class="color-box" style="background:#7a3290;"></span>90-119</div>
+                  <div class="legend-item"><span class="color-box" style="background:#985ea7;"></span>60-89</div>
+                  <div class="legend-item"><span class="color-box" style="background:#b68bc1;"></span>30-59</div>
+                  <div class="legend-item"><span class="color-box" style="background:#d5b6da;"></span>0-29</div>
+                `;
+              } else if (baseField === 'overlap_type') {
+                html += `
+                  <div class="legend-item"><span class="color-box" style="background:#d73027;"></span>Low Screening-Low Access</div>
+                  <div class="legend-item"><span class="color-box" style="background:#1a9850;"></span>High Screening-High Access</div>
+                  <div class="legend-item"><span class="color-box" style="background:#999999;"></span>Non-significant</div>
+                `;
+              }
+
+              legend.innerHTML = html;
+            }
+
+            function switchLayer(fieldKey) {
+              if (currentLayer) {
+                map.removeLayer(currentLayer);
+              }
+              
+              const pmtilesSource = fieldKey.includes('_95') ? pm95 : pm99;
+              currentLayer = createLayer(pmtilesSource, fieldKey);
+              currentLayer.addTo(map);
+              
+              updateLegend(fieldKey);
+              statusEl.textContent = `Displaying ${fieldKey.replace('_', ' ')} data`;
+            }
+
+            // Setup radio buttons event listeners
+            document.querySelectorAll('input[name="tractField"]').forEach(radio => {
+              radio.addEventListener('change', e => {
+                if (e.target.checked) {
+                  switchLayer(e.target.value);
+                }
+              });
+            });
+
+            // Initialize with default layer
+            switchLayer('COLON_SCRE_95');
+            statusEl.textContent = 'Map ready';
+            
+          })
+          .catch(error => {
+            console.error('Error loading catchments:', error);
+            statusEl.textContent = 'Error loading data: ' + error.message;
+            statusEl.style.color = 'red';
+          });
+        
+      } catch (error) {
+        console.error('Map initialization error:', error);
+        statusEl.textContent = 'Initialization error: ' + error.message;
+        statusEl.style.color = 'red';
+      }
+    });
   </script>
 </body>
 </html>
