@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Catchments & Tracts Map</title>
+  <title>Healthcare Access & Screening Hotspots</title>
 
   <!-- Leaflet CSS -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css"/>
@@ -206,6 +206,23 @@
     .catchment-item:last-child {
       border-bottom: none;
     }
+    
+    /* Debug panel */
+    .debug-panel {
+      position: absolute;
+      bottom: 50px;
+      left: 10px;
+      background: rgba(0, 0, 0, 0.7);
+      color: white;
+      padding: 10px;
+      border-radius: 4px;
+      font-size: 12px;
+      z-index: 1000;
+      max-width: 300px;
+      max-height: 200px;
+      overflow-y: auto;
+      display: none;
+    }
   </style>
 </head>
 <body>
@@ -229,6 +246,10 @@
       <label><input type="radio" name="tractField" value="fin100k_99"> Primary care providers per 100k</label>
       <label><input type="radio" name="tractField" value="overlap_type_99"> Access-screening overlap</label>
     </div>
+    
+    <div style="margin-top: 15px; padding-top: 10px; border-top: 1px solid #eee;">
+      <label><input type="checkbox" id="debugToggle"> Show debug info</label>
+    </div>
   </div>
 
   <div class="legend">
@@ -239,6 +260,8 @@
   <div class="status-bar">
     <span id="status">Initializing map...</span>
   </div>
+  
+  <div class="debug-panel" id="debugPanel"></div>
 
   <!-- Load scripts at the end to ensure DOM is ready -->
   <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
@@ -251,6 +274,27 @@
   <script>
     document.addEventListener('DOMContentLoaded', function() {
       const statusEl = document.getElementById('status');
+      const debugPanel = document.getElementById('debugPanel');
+      const debugToggle = document.getElementById('debugToggle');
+      let debugLog = [];
+      
+      // Debug logging function
+      function debugLogMessage(message) {
+        debugLog.push(new Date().toLocaleTimeString() + ': ' + message);
+        if (debugLog.length > 10) debugLog.shift();
+        
+        if (debugPanel.style.display === 'block') {
+          debugPanel.innerHTML = debugLog.join('<br>');
+        }
+      }
+      
+      // Toggle debug panel
+      debugToggle.addEventListener('change', function() {
+        debugPanel.style.display = this.checked ? 'block' : 'none';
+        if (this.checked) {
+          debugPanel.innerHTML = debugLog.join('<br>');
+        }
+      });
       
       // Initialize map with zoom controls
       const map = L.map('map', {
@@ -274,14 +318,16 @@
       // Load catchments as GeoJSON
       function loadCatchments() {
         statusEl.textContent = 'Loading catchments...';
+        debugLogMessage('Loading catchments from assets/catchments.json');
         
         return fetch('assets/catchments.json')
           .then(response => {
-            if (!response.ok) throw new Error('Failed to load catchments');
+            if (!response.ok) throw new Error('Failed to load catchments: ' + response.status);
             return response.json();
           })
           .then(geojson => {
             statusEl.textContent = 'Rendering catchments...';
+            debugLogMessage('Catchments loaded successfully, rendering...');
             catchmentsData = geojson.features;
             
             // Add catchments to map
@@ -311,6 +357,7 @@
             });
             
             statusEl.textContent = 'Catchments loaded successfully';
+            debugLogMessage('Catchments rendered on map');
             return true;
           });
       }
@@ -373,36 +420,36 @@
       function initPMTiles() {
         if (typeof window.pmtiles === 'undefined') {
           statusEl.textContent = 'PMTiles not available, using catchments only';
+          debugLogMessage('ERROR: PMTiles library not loaded');
           showError('PMTiles Error', 'Hotspot data could not be loaded. Showing catchments only.');
           return;
         }
         
         try {
           const PMTiles = window.pmtiles.PMTiles;
+          debugLogMessage('Initializing PMTiles protocol');
+          
+          // Create a new protocol instance
           const protocol = new window.pmtiles.Protocol();
           
-          // Create PMTiles instances and register protocol
+          // Create PMTiles instances
+          debugLogMessage('Loading PMTiles files...');
           const pm95 = new PMTiles('assets/sc_acc_hot_spots_overlap_95.pmtiles');
           const pm99 = new PMTiles('assets/sc_acc_hot_spots_overlap_99.pmtiles');
           
           // Register the protocol
           window.pmtiles.registerProtocol(protocol);
+          
+          // Add the PMTiles sources to the protocol
           protocol.add(pm95);
           protocol.add(pm99);
           
-          // Verify PMTiles files are accessible
-          Promise.all([pm95.getHeader(), pm99.getHeader()])
-            .then(() => {
-              setupHotspotLayers(pm95, pm99);
-              statusEl.textContent = 'PMTiles layers initialized';
-            })
-            .catch(error => {
-              console.error('Error accessing PMTiles:', error);
-              statusEl.textContent = 'PMTiles access error: ' + error.message;
-              showError('PMTiles Error', 'Could not access hotspot data files. Showing catchments only.');
-            });
+          debugLogMessage('PMTiles protocol registered successfully');
+          setupHotspotLayers(pm95, pm99);
+          statusEl.textContent = 'PMTiles layers initialized';
         } catch (error) {
           console.error('Error initializing PMTiles:', error);
+          debugLogMessage('ERROR initializing PMTiles: ' + error.message);
           statusEl.textContent = 'PMTiles initialization error: ' + error.message;
           showError('PMTiles Error', 'Hotspot data could not be loaded. Showing catchments only.');
         }
@@ -442,6 +489,7 @@
         // Create a VectorGrid layer from PMTiles source
         function createLayer(pmtilesSource, fieldKey) {
           const baseField = fieldKey.replace(/_\d+$/, '');
+          debugLogMessage('Creating layer for field: ' + fieldKey);
           
           return L.vectorGrid.protobuf(pmtilesSource.getURLTemplate(), {
             vectorTileLayerStyles: {
@@ -521,14 +569,17 @@
           }
           
           try {
+            debugLogMessage('Switching to layer: ' + fieldKey);
             const pmtilesSource = fieldKey.includes('_95') ? pm95 : pm99;
             currentLayer = createLayer(pmtilesSource, fieldKey);
             currentLayer.addTo(map);
             
             updateLegend(fieldKey);
             statusEl.textContent = `Displaying ${fieldKey.replace('_', ' ')} data`;
+            debugLogMessage('Layer displayed successfully: ' + fieldKey);
           } catch (error) {
             console.error('Error switching layer:', error);
+            debugLogMessage('ERROR switching layer: ' + error.message);
             statusEl.textContent = 'Error displaying hotspot data';
             showError('Layer Error', 'Could not display the selected hotspot layer.');
           }
@@ -545,10 +596,12 @@
 
         // Initialize with default layer
         try {
+          debugLogMessage('Initializing default layer: COLON_SCRE_95');
           switchLayer('COLON_SCRE_95');
           statusEl.textContent = 'Map ready with hotspot data';
         } catch (error) {
           console.error('Error initializing default layer:', error);
+          debugLogMessage('ERROR initializing default layer: ' + error.message);
           statusEl.textContent = 'Error loading default hotspot layer';
         }
       }
@@ -578,6 +631,7 @@
         })
         .catch(error => {
           console.error('Error loading catchments:', error);
+          debugLogMessage('ERROR loading catchments: ' + error.message);
           statusEl.textContent = 'Catchments load error: ' + error.message;
           showError('Data Error', 'Failed to load catchment data.');
         });
