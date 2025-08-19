@@ -358,6 +358,35 @@
       let catchmentsData = [];
       let catchmentsTurfFeatures = [];
       
+      // Function to validate and fix GeoJSON geometries
+      function validateGeometry(feature) {
+        try {
+          const geom = feature.geometry;
+          
+          // Check if it's a polygon
+          if (geom.type === 'Polygon') {
+            // Ensure each ring has at least 4 positions
+            const coordinates = geom.coordinates.map(ring => {
+              // If ring has less than 4 positions, duplicate the first point to close it
+              if (ring.length < 4) {
+                debugLogMessage('Fixing polygon with ' + ring.length + ' points');
+                // Add the first point again to close the ring
+                return [...ring, ring[0]];
+              }
+              return ring;
+            });
+            
+            return {...feature, geometry: {...geom, coordinates}};
+          }
+          
+          // For other geometry types, return as-is
+          return feature;
+        } catch (error) {
+          debugLogMessage('Error validating geometry: ' + error.message);
+          return null;
+        }
+      }
+      
       // Load catchments as GeoJSON
       function loadCatchments() {
         statusEl.textContent = 'Loading catchments...';
@@ -369,20 +398,46 @@
             return response.json();
           })
           .then(geojson => {
-            statusEl.textContent = 'Rendering catchments...';
-            debugLogMessage('Catchments loaded successfully, rendering...');
-            catchmentsData = geojson.features;
+            statusEl.textContent = 'Processing catchments...';
+            debugLogMessage('Catchments loaded, processing geometries...');
+            
+            // Validate and fix geometries
+            const validFeatures = [];
+            const invalidFeatures = [];
+            
+            geojson.features.forEach(feature => {
+              const validated = validateGeometry(feature);
+              if (validated) {
+                validFeatures.push(validated);
+              } else {
+                invalidFeatures.push(feature);
+              }
+            });
+            
+            if (invalidFeatures.length > 0) {
+              debugLogMessage('Skipped ' + invalidFeatures.length + ' invalid features');
+            }
+            
+            catchmentsData = validFeatures;
             
             // Create Turf.js features for spatial analysis
             catchmentsTurfFeatures = catchmentsData.map(feature => {
-              return {
-                feature: feature,
-                turfPolygon: turf.polygon(feature.geometry.coordinates)
-              };
-            });
+              try {
+                return {
+                  feature: feature,
+                  turfPolygon: turf.polygon(feature.geometry.coordinates)
+                };
+              } catch (error) {
+                debugLogMessage('Error creating Turf polygon: ' + error.message);
+                return null;
+              }
+            }).filter(item => item !== null);
+            
+            statusEl.textContent = 'Rendering catchments...';
+            debugLogMessage('Catchments processed, rendering...');
             
             // Add catchments to map with black dashed borders and no fill
-            catchmentsLayer = L.geoJSON(geojson, {
+            catchmentsLayer = L.geoJSON({type: 'FeatureCollection', features: catchmentsData}, {
               style: { 
                 color: '#000000', // Black border
                 weight: 2, 
@@ -409,7 +464,7 @@
             });
             
             statusEl.textContent = 'Catchments loaded successfully';
-            debugLogMessage('Catchments rendered on map');
+            debugLogMessage('Catchments rendered on map: ' + catchmentsData.length + ' features');
             return true;
           });
       }
@@ -420,8 +475,12 @@
         const point = turf.point([latlng.lng, latlng.lat]);
         
         catchmentsTurfFeatures.forEach(({feature, turfPolygon}) => {
-          if (turf.booleanPointInPolygon(point, turfPolygon)) {
-            overlapping.push(feature);
+          try {
+            if (turf.booleanPointInPolygon(point, turfPolygon)) {
+              overlapping.push(feature);
+            }
+          } catch (error) {
+            debugLogMessage('Error in point-in-polygon check: ' + error.message);
           }
         });
         
@@ -446,8 +505,9 @@
           .openOn(map);
       }
       
-      // Initialize PMTiles functionality
+      // Initialize PMTiles functionality with fallback
       function initPMTiles() {
+        // Check if PMTiles is available
         if (typeof window.pmtiles === 'undefined') {
           statusEl.textContent = 'PMTiles not available, using catchments only';
           debugLogMessage('ERROR: PMTiles library not loaded');
@@ -464,8 +524,17 @@
           
           // Create PMTiles instances - using direct file access
           debugLogMessage('Loading PMTiles files directly...');
-          const pm95 = new PMTiles('assets/sc_acc_hot_spots_overlap_95.pmtiles');
-          const pm99 = new PMTiles('assets/sc_acc_hot_spots_overlap_99.pmtiles');
+          
+          // Add error handling for PMTiles loading
+          let pm95, pm99;
+          try {
+            pm95 = new PMTiles('assets/sc_acc_hot_spots_overlap_95.pmtiles');
+            pm99 = new PMTiles('assets/sc_acc_hot_spots_overlap_99.pmtiles');
+          } catch (error) {
+            debugLogMessage('Error creating PMTiles instances: ' + error.message);
+            showError('PMTiles Error', 'Could not load hotspot files. Showing catchments only.');
+            return;
+          }
           
           // Register the protocol
           window.pmtiles.registerProtocol(protocol);
