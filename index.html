@@ -223,6 +223,26 @@
       overflow-y: auto;
       display: none;
     }
+    
+    .solution-panel {
+      position: absolute;
+      top: 100px;
+      right: 10px;
+      background: rgba(255, 255, 255, 0.95);
+      padding: 15px;
+      border-radius: 8px;
+      z-index: 1000;
+      max-width: 300px;
+      box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);
+      border: 1px solid #ddd;
+    }
+    
+    .solution-panel h3 {
+      margin-top: 0;
+      color: #2c3e50;
+      border-bottom: 1px solid #eee;
+      padding-bottom: 8px;
+    }
   </style>
 </head>
 <body>
@@ -262,6 +282,17 @@
   </div>
   
   <div class="debug-panel" id="debugPanel"></div>
+  
+  <div class="solution-panel">
+    <h3>CORB Solution</h3>
+    <p>To fix CORB issues on GitHub Pages:</p>
+    <ol>
+      <li>Add a <code>.nojekyll</code> file to your repository</li>
+      <li>Rename PMTiles files to have <code>.bin</code> extension</li>
+      <li>Update file paths in code to use <code>.bin</code> files</li>
+    </ol>
+    <p>This prevents GitHub from applying content type transformations that cause CORB errors.</p>
+  </div>
 
   <!-- Load scripts at the end to ensure DOM is ready -->
   <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
@@ -432,10 +463,10 @@
           // Create a new protocol instance
           const protocol = new window.pmtiles.Protocol();
           
-          // Create PMTiles instances
-          debugLogMessage('Loading PMTiles files...');
-          const pm95 = new PMTiles('assets/sc_acc_hot_spots_overlap_95.pmtiles');
-          const pm99 = new PMTiles('assets/sc_acc_hot_spots_overlap_99.pmtiles');
+          // Create PMTiles instances - using .bin extension to avoid CORB issues
+          debugLogMessage('Loading PMTiles files with .bin extension...');
+          const pm95 = new PMTiles('assets/sc_acc_hot_spots_overlap_95.bin');
+          const pm99 = new PMTiles('assets/sc_acc_hot_spots_overlap_99.bin');
           
           // Register the protocol
           window.pmtiles.registerProtocol(protocol);
