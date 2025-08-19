@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Healthcare Access & Screening Hotspots - CORB Fix</title>
+  <title>Healthcare Access & Screening Hotspots</title>
 
   <!-- Leaflet CSS -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css"/>
@@ -297,18 +297,9 @@
   <div class="debug-panel" id="debugPanel"></div>
   
   <div class="solution-panel">
-    <h3>CORB Solution</h3>
-    <p>To fix CORB issues on GitHub Pages:</p>
-    <ol>
-      <li>Add a <code>.nojekyll</code> file to your repository root</li>
-      <li>Rename PMTiles files to have <code>.bin</code> extension</li>
-      <li>Use a CORS proxy for PMTiles files</li>
-    </ol>
-    <p>This implementation uses a CORS proxy to bypass the CORB error.</p>
-  </div>
-
-  <div class="cors-fix-notice" id="corsNotice">
-    Using CORS proxy to avoid CORB errors. Click to learn more.
+    <h3>GitHub Pages Solution</h3>
+    <p>This implementation uses direct file access with correct CORS headers.</p>
+    <p>No external proxies required!</p>
   </div>
 
   <!-- Load scripts at the end to ensure DOM is ready -->
@@ -324,11 +315,7 @@
       const statusEl = document.getElementById('status');
       const debugPanel = document.getElementById('debugPanel');
       const debugToggle = document.getElementById('debugToggle');
-      const corsNotice = document.getElementById('corsNotice');
       let debugLog = [];
-      
-      // CORS proxy URL - using a public CORS proxy
-      const CORS_PROXY = "https://corsproxy.io/?";
       
       // Debug logging function
       function debugLogMessage(message) {
@@ -346,11 +333,6 @@
         if (this.checked) {
           debugPanel.innerHTML = debugLog.join('<br>');
         }
-      });
-      
-      // CORS notice click handler
-      corsNotice.addEventListener('click', function() {
-        showError('CORS Proxy', 'This implementation uses a CORS proxy to bypass CORB errors on GitHub Pages. The PMTiles files are fetched through a proxy service that adds proper CORS headers.');
       });
       
       // Initialize map with zoom controls
@@ -387,13 +369,14 @@
             debugLogMessage('Catchments loaded successfully, rendering...');
             catchmentsData = geojson.features;
             
-            // Add catchments to map
+            // Add catchments to map with black dashed borders and no fill
             catchmentsLayer = L.geoJSON(geojson, {
               style: { 
-                color: '#3498db', 
-                weight: 3, 
-                fillOpacity: 0.1,  // Slight fill to make clicking easier
-                dashArray: '5, 8'
+                color: '#000000', // Black border
+                weight: 2, 
+                fillOpacity: 0,  // No fill
+                dashArray: '5, 8', // Dashed line
+                opacity: 0.7
               },
               onEachFeature: (feature, layer) => {
                 // Store reference to the original feature
@@ -473,7 +456,7 @@
           .openOn(map);
       }
       
-      // Initialize PMTiles functionality with CORS proxy
+      // Initialize PMTiles functionality
       function initPMTiles() {
         if (typeof window.pmtiles === 'undefined') {
           statusEl.textContent = 'PMTiles not available, using catchments only';
@@ -484,20 +467,15 @@
         
         try {
           const PMTiles = window.pmtiles.PMTiles;
-          debugLogMessage('Initializing PMTiles with CORS proxy');
-          
-          // Create PMTiles instances with CORS proxy
-          const pm95Url = CORS_PROXY + encodeURIComponent(window.location.origin + '/assets/sc_acc_hot_spots_overlap_95.bin');
-          const pm99Url = CORS_PROXY + encodeURIComponent(window.location.origin + '/assets/sc_acc_hot_spots_overlap_99.bin');
-          
-          debugLogMessage('Loading PMTiles through CORS proxy: ' + pm95Url);
-          
-          // Create PMTiles instances
-          const pm95 = new PMTiles(pm95Url);
-          const pm99 = new PMTiles(pm99Url);
+          debugLogMessage('Initializing PMTiles protocol');
           
           // Create a new protocol instance
           const protocol = new window.pmtiles.Protocol();
+          
+          // Create PMTiles instances - using direct file access
+          debugLogMessage('Loading PMTiles files directly...');
+          const pm95 = new PMTiles('assets/sc_acc_hot_spots_overlap_95.pmtiles');
+          const pm99 = new PMTiles('assets/sc_acc_hot_spots_overlap_99.pmtiles');
           
           // Register the protocol
           window.pmtiles.registerProtocol(protocol);
@@ -506,9 +484,9 @@
           protocol.add(pm95);
           protocol.add(pm99);
           
-          debugLogMessage('PMTiles protocol registered successfully with CORS proxy');
+          debugLogMessage('PMTiles protocol registered successfully');
           setupHotspotLayers(pm95, pm99);
-          statusEl.textContent = 'PMTiles layers initialized with CORS proxy';
+          statusEl.textContent = 'PMTiles layers initialized';
         } catch (error) {
           console.error('Error initializing PMTiles:', error);
           debugLogMessage('ERROR initializing PMTiles: ' + error.message);
