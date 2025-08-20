@@ -82,7 +82,7 @@
     .legend .line-box {
       display: inline-block;
       width: 20px;
-      height: 5px;
+      height: 7.5px; /* Increased by 50% to match catchment border */
       margin-right: 8px;
       vertical-align: middle;
       background: #FF9900;
@@ -302,6 +302,24 @@
       color: #2c3e50;
     }
     
+    .catchment-list {
+      margin-top: 5px;
+      max-height: 120px;
+      overflow-y: auto;
+      padding: 5px;
+      background: #f9f9f9;
+      border-radius: 4px;
+    }
+    
+    .catchment-list-item {
+      padding: 5px;
+      border-bottom: 1px solid #eee;
+    }
+    
+    .catchment-list-item:last-child {
+      border-bottom: none;
+    }
+    
     /* Mobile Responsive Styles */
     @media (max-width: 768px) {
       .control-panel {
@@ -368,7 +386,7 @@
       }
       
       .legend .line-box {
-        height: 4px;
+        height: 6px; /* Adjusted for mobile */
       }
     }
     
@@ -541,11 +559,12 @@
             catchmentsData = geojson.features;
             
             // Add catchments to map with bright orange dashed borders and no fill
+            // Increased border size by 50% (from 3 to 4.5)
             catchmentsLayer = L.geoJSON(geojson, {
               style: { 
                 color: '#FF9900', // Bright orange border
-                weight: 3, 
-                fillOpacity: 0,  // No fill
+                weight: 4.5,      // Increased by 50% (from 3 to 4.5)
+                fillOpacity: 0,   // No fill
                 dashArray: '5, 8', // Dashed line
                 opacity: 0.9
               },
@@ -660,6 +679,20 @@
           content += `</div>`;
         }
         
+        // Catchment section - show all overlapping catchments
+        if (catchments && catchments.length > 0) {
+          content += `<div class="section">`;
+          content += `<div class="section-title">Overlapping Catchments (${catchments.length})</div>`;
+          content += `<div class="catchment-list">`;
+          
+          catchments.forEach((catchment, index) => {
+            const name = catchment.properties?.name || `Catchment ${index + 1}`;
+            content += `<div class="catchment-list-item">${name}</div>`;
+          });
+          
+          content += `</div></div>`;
+        }
+        
         content += `</div>`;
         
         L.popup()
@@ -690,7 +723,7 @@
               map.removeLayer(tractsLayer);
             }
             
-            // Add tracts to map with styling based on current field
+            // Add tracts to map with styling based to current field
             tractsLayer = L.geoJSON(geojsonData, {
               style: getStyleForField,
               onEachFeature: function(feature, layer) {
