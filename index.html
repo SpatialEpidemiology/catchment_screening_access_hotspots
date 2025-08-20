@@ -470,11 +470,11 @@
   </div>
 
   <div class="loading-indicator" id="loadingIndicator" style="display: none;">
-    <p>Loading TopoJSON data. This may take a moment...</p>
+    <p>Loading data. This may take a moment...</p>
   </div>
 
   <div class="note-panel">
-    Note: Overlapping clusters are adjusted for ADI, urban/rural, Hispanic/Latino %, NHB %, & uninsured %.<br>Clusters are overlap given the values of these variables and not just low access & low screening.
+    Note: Overlapping clusters are adjusted for ADI, urban/rural, Hispanic/Latino %, NHB %, & uninsured %.<br>Clusters overlap given the values of these variables and not simply low access & low screening.
   </div>
 
   <button class="mobile-toggle" id="toggleControls">Toggle Controls</button>
@@ -608,7 +608,7 @@
             return true;
           })
           .catch(error => {
-            console.error('Error loading TopoJSON:', error);
+            console.error('Error loading data:', error);
             statusEl.textContent = 'Error loading census tract data: ' + error.message;
             showLoading(false);
             
