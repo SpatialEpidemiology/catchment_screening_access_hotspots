@@ -364,8 +364,8 @@
   <div class="control-panel">
     <h3>Cluster Visualization</h3>
     <div class="radio-group">
-      <label><input type="radio" name="tractField" value="overlap_type" checked> 95% Credible Interval</label>
-      <label><input type="radio" name="tractField" value="overlap_type_99"> 99% Credible Interval</label>
+      <label><input type="radio" name="tractField" value="overlap_type"> 95% Credible Interval</label>
+      <label><input type="radio" name="tractField" value="overlap_type_99" checked> 99% Credible Interval</label>
     </div>
   </div>
 
@@ -413,7 +413,8 @@
       
       let catchmentsLayer = null;
       let tractsLayer = null;
-      let currentField = 'overlap_type';
+      // Changed default to 99% credible interval
+      let currentField = 'overlap_type_99';
       
       function showLoading(show) {
         loadingIndicator.style.display = show ? 'block' : 'none';
