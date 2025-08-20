@@ -198,6 +198,73 @@
       text-align: center;
       box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
     }
+    
+    .zoom-controls {
+      position: absolute;
+      bottom: 20px;
+      left: 10px;
+      z-index: 1000;
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+    
+    .zoom-btn {
+      width: 40px;
+      height: 40px;
+      background: rgba(255, 255, 255, 0.9);
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      font-size: 18px;
+      font-weight: bold;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 1px 5px rgba(0, 0, 0, 0.1);
+    }
+    
+    .zoom-btn:hover {
+      background: #f8f9fa;
+    }
+    
+    .tract-popup {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      max-width: 300px;
+    }
+    
+    .tract-popup h4 {
+      margin: 0 0 10px 0;
+      color: #2c3e50;
+      border-bottom: 1px solid #eee;
+      padding-bottom: 5px;
+    }
+    
+    .tract-popup .section {
+      margin-bottom: 10px;
+    }
+    
+    .tract-popup .section-title {
+      font-weight: bold;
+      color: #2c3e50;
+      margin-bottom: 5px;
+    }
+    
+    .tract-popup .data-row {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 3px;
+    }
+    
+    .tract-popup .data-label {
+      font-weight: 500;
+      color: #555;
+    }
+    
+    .tract-popup .data-value {
+      font-weight: 600;
+      color: #2c3e50;
+    }
   </style>
 </head>
 <body>
@@ -208,24 +275,20 @@
   <div id="map"></div>
 
   <div class="control-panel">
-    <h3>95% Credible Interval Cluster</h3>
+    <h3>Cluster Visualization</h3>
     <div class="radio-group">
-      <label><input type="radio" name="tractField" value="COLON_SCRE" checked> CRC screening (%)</label>
-      <label><input type="radio" name="tractField" value="fin100k"> Primary care providers per 100k</label>
-      <label><input type="radio" name="tractField" value="overlap_type"> Access-screening overlap</label>
-    </div>
-
-    <h3>99% Credible Interval Cluster</h3>
-    <div class="radio-group">
-      <label><input type="radio" name="tractField" value="COLON_SCRE"> CRC screening (%)</label>
-      <label><input type="radio" name="tractField" value="fin100k"> Primary care providers per 100k</label>
-      <label><input type="radio" name="tractField" value="overlap_type_99"> Access-screening overlap</label>
+      <label><input type="radio" name="tractField" value="overlap_type" checked> 95% Credible Interval</label>
+      <label><input type="radio" name="tractField" value="overlap_type_99"> 99% Credible Interval</label>
     </div>
   </div>
 
   <div class="legend">
     <h3>Legend</h3>
-    <div id="legend-content"></div>
+    <div id="legend-content">
+      <div class="legend-item"><span class="color-box" style="background:#d73027;"></span>Low Screening-Low Access</div>
+      <div class="legend-item"><span class="color-box" style="background:#1a9850;"></span>High Screening-High Access</div>
+      <div class="legend-item"><span class="color-box" style="background:#999999;"></span>Non-significant</div>
+    </div>
   </div>
   
   <div class="status-bar">
@@ -236,6 +299,11 @@
     <p>Loading TopoJSON data. This may take a moment...</p>
   </div>
 
+  <div class="zoom-controls">
+    <button class="zoom-btn" id="zoomIn">+</button>
+    <button class="zoom-btn" id="zoomOut">-</button>
+  </div>
+
   <!-- Load scripts -->
   <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
   <script src="https://unpkg.com/topojson-client@3"></script>
@@ -244,6 +312,8 @@
     document.addEventListener('DOMContentLoaded', function() {
       const statusEl = document.getElementById('status');
       const loadingIndicator = document.getElementById('loadingIndicator');
+      const zoomInBtn = document.getElementById('zoomIn');
+      const zoomOutBtn = document.getElementById('zoomOut');
       
       // Initialize map
       const map = L.map('map').setView([33.5186, -86.8104], 7);
@@ -253,11 +323,20 @@
         attribution: '&copy; OpenStreetMap &copy; CartoDB'
       }).addTo(map);
       
+      // Add zoom controls
+      zoomInBtn.addEventListener('click', () => {
+        map.zoomIn();
+      });
+      
+      zoomOutBtn.addEventListener('click', () => {
+        map.zoomOut();
+      });
+      
       // Store catchments and tracts for overlap detection
       let catchmentsLayer = null;
       let catchmentsData = [];
       let tractsLayer = null;
-      let currentField = 'COLON_SCRE';
+      let currentField = 'overlap_type';
       
       // Function to show loading indicator
       function showLoading(show) {
@@ -352,21 +431,7 @@
                 // Add click handler for tracts
                 layer.on('click', function(e) {
                   const props = e.target.feature.properties;
-                  let content = `<div class="popup-content"><strong>Tract ${props.id || ''}</strong><br>`;
-                  
-                  // Show all relevant properties
-                  if (props.COLON_SCRE !== undefined) content += `95% CRC Screening: ${props.COLON_SCRE}%<br>`;
-                  if (props.COLON_SCRE !== undefined) content += `99% CRC Screening: ${props.COLON_SCRE}%<br>`;
-                  if (props.fin100k !== undefined) content += `95% Providers/100k: ${props.fin100k}<br>`;
-                  if (props.fin100k !== undefined) content += `99% Providers/100k: ${props.fin100k}<br>`;
-                  if (props.overlap_type !== undefined) content += `95% Overlap: ${props.overlap_type}<br>`;
-                  if (props.overlap_type_99 !== undefined) content += `99% Overlap: ${props.overlap_type_99}<br>`;
-                  
-                  content += '</div>';
-                  L.popup()
-                    .setLatLng(e.latlng)
-                    .setContent(content)
-                    .openOn(map);
+                  showTractPopup(e.latlng, props, confidenceLevel);
                 });
               }
             }).addTo(map);
@@ -389,6 +454,40 @@
             
             throw error;
           });
+      }
+      
+      // Show detailed tract information in popup
+      function showTractPopup(latlng, props, confidenceLevel) {
+        let content = `<div class="tract-popup">`;
+        content += `<h4>Tract ${props.id || 'Information'}</h4>`;
+        
+        // CRC Screening section
+        content += `<div class="section">`;
+        content += `<div class="section-title">CRC Screening (%)</div>`;
+        content += `<div class="data-row"><span class="data-label">95% Credible Interval:</span> <span class="data-value">${props.COLON_SCRE || 'N/A'}%</span></div>`;
+        content += `<div class="data-row"><span class="data-label">99% Credible Interval:</span> <span class="data-value">${props.COLON_SCRE_99 || 'N/A'}%</span></div>`;
+        content += `</div>`;
+        
+        // Primary Care Providers section
+        content += `<div class="section">`;
+        content += `<div class="section-title">Primary Care Providers per 100k</div>`;
+        content += `<div class="data-row"><span class="data-label">95% Credible Interval:</span> <span class="data-value">${props.fin100k || 'N/A'}</span></div>`;
+        content += `<div class="data-row"><span class="data-label">99% Credible Interval:</span> <span class="data-value">${props.fin100k_99 || 'N/A'}</span></div>`;
+        content += `</div>`;
+        
+        // Cluster Type section
+        content += `<div class="section">`;
+        content += `<div class="section-title">Cluster Type</div>`;
+        content += `<div class="data-row"><span class="data-label">95% Credible Interval:</span> <span class="data-value">${props.overlap_type || 'N/A'}</span></div>`;
+        content += `<div class="data-row"><span class="data-label">99% Credible Interval:</span> <span class="data-value">${props.overlap_type_99 || 'N/A'}</span></div>`;
+        content += `</div>`;
+        
+        content += `</div>`;
+        
+        L.popup()
+          .setLatLng(latlng)
+          .setContent(content)
+          .openOn(map);
       }
       
       // Load GeoJSON census tracts as fallback
@@ -420,21 +519,7 @@
                 // Add click handler for tracts
                 layer.on('click', function(e) {
                   const props = e.target.feature.properties;
-                  let content = `<div class="popup-content"><strong>Tract ${props.id || ''}</strong><br>`;
-                  
-                  // Show all relevant properties
-                  if (props.COLON_SCRE !== undefined) content += `95% CRC Screening: ${props.COLON_SCRE}%<br>`;
-                  if (props.COLON_SCRE !== undefined) content += `99% CRC Screening: ${props.COLON_SCRE}%<br>`;
-                  if (props.fin100k !== undefined) content += `95% Providers/100k: ${props.fin100k}<br>`;
-                  if (props.fin100k !== undefined) content += `99% Providers/100k: ${props.fin100k}<br>`;
-                  if (props.overlap_type !== undefined) content += `95% Overlap: ${props.overlap_type}<br>`;
-                  if (props.overlap_type_99 !== undefined) content += `99% Overlap: ${props.overlap_type_99}<br>`;
-                  
-                  content += '</div>';
-                  L.popup()
-                    .setLatLng(e.latlng)
-                    .setContent(content)
-                    .openOn(map);
+                  showTractPopup(e.latlng, props, confidenceLevel);
                 });
               }
             }).addTo(map);
@@ -456,24 +541,6 @@
       function getStyleForField(feature) {
         const value = feature.properties[currentField];
         
-        // Handle numeric fields
-        if (typeof value === 'number') {
-          if (currentField.includes('COLON_SCRE')) {
-            if (value >= 80) return { fillColor: '#08306b', fillOpacity: 0.8, color: '#444', weight: 0.3 };
-            if (value >= 60) return { fillColor: '#2171b5', fillOpacity: 0.8, color: '#444', weight: 0.3 };
-            if (value >= 40) return { fillColor: '#4292c6', fillOpacity: 0.8, color: '#444', weight: 0.3 };
-            if (value >= 20) return { fillColor: '#6baed6', fillOpacity: 0.8, color: '#444', weight: 0.3 };
-            return { fillColor: '#9ecae1', fillOpacity: 0.8, color: '#444', weight: 0.3 };
-          }
-          if (currentField.includes('fin100k')) {
-            if (value >= 120) return { fillColor: '#4b0055', fillOpacity: 0.8, color: '#444', weight: 0.3 };
-            if (value >= 90) return { fillColor: '#7a3290', fillOpacity: 0.8, color: '#444', weight: 0.3 };
-            if (value >= 60) return { fillColor: '#985ea7', fillOpacity: 0.8, color: '#444', weight: 0.3 };
-            if (value >= 30) return { fillColor: '#b68bc1', fillOpacity: 0.8, color: '#444', weight: 0.3 };
-            return { fillColor: '#d5b6da', fillOpacity: 0.8, color: '#444', weight: 0.3 };
-          }
-        }
-        
         // Handle categorical field
         if (currentField.includes('overlap_type')) {
           if (value === 'Low Screening-Low Access Cluster') return { fillColor: '#d73027', fillOpacity: 0.8, color: '#444', weight: 0.3 };
@@ -492,23 +559,7 @@
         
         const confLevel = fieldKey.includes('_99') ? '99%' : '95%';
 
-        if (baseField === 'COLON_SCRE') {
-          html += `
-            <div class="legend-item"><span class="color-box" style="background:#08306b;"></span>≥ 80% (${confLevel})</div>
-            <div class="legend-item"><span class="color-box" style="background:#2171b5;"></span>60-79%</div>
-            <div class="legend-item"><span class="color-box" style="background:#4292c6;"></span>40-59%</div>
-            <div class="legend-item"><span class="color-box" style="background:#6baed6;"></span>20-39%</div>
-            <div class="legend-item"><span class="color-box" style="background:#9ecae1;"></span>0-19%</div>
-          `;
-        } else if (baseField === 'fin100k') {
-          html += `
-            <div class="legend-item"><span class="color-box" style="background:#4b0055;"></span>≥ 120 (${confLevel})</div>
-            <div class="legend-item"><span class="color-box" style="background:#7a3290;"></span>90-119</div>
-            <div class="legend-item"><span class="color-box" style="background:#985ea7;"></span>60-89</div>
-            <div class="legend-item"><span class="color-box" style="background:#b68bc1;"></span>30-59</div>
-            <div class="legend-item"><span class="color-box" style="background:#d5b6da;"></span>0-29</div>
-          `;
-        } else if (baseField === 'overlap_type') {
+        if (baseField === 'overlap_type') {
           html += `
             <div class="legend-item"><span class="color-box" style="background:#d73027;"></span>Low Screening-Low Access</div>
             <div class="legend-item"><span class="color-box" style="background:#1a9850;"></span>High Screening-High Access</div>
