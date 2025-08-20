@@ -571,20 +571,27 @@
               onEachFeature: (feature, layer) => {
                 // Store reference to the original feature
                 layer.feature = feature;
+                
+                // Add popup for each catchment
+                if (feature.properties && feature.properties.name) {
+                  layer.bindPopup(`
+                    <div class="combined-popup">
+                      <h4>Catchment Area</h4>
+                      <div class="section">
+                        <div class="section-title">Catchment Information</div>
+                        <div class="data-row">
+                          <span class="data-label">Name:</span>
+                          <span class="data-value">${feature.properties.name}</span>
+                        </div>
+                      </div>
+                    </div>
+                  `);
+                }
               }
             }).addTo(map);
             
-            // Add click handler for catchments
-            catchmentsLayer.on('click', function(e) {
-              const clickedLatLng = e.latlng;
-              
-              // Find all catchments that contain the clicked point
-              const overlappingCatchments = findOverlappingCatchments(clickedLatLng);
-              
-              if (overlappingCatchments.length > 0) {
-                showCombinedPopup(clickedLatLng, null, overlappingCatchments);
-              }
-            });
+            // Bring catchments to the front
+            catchmentsLayer.bringToFront();
             
             statusEl.textContent = 'Catchments loaded successfully';
             return true;
@@ -644,6 +651,11 @@
                 });
               }
             }).addTo(map);
+            
+            // Ensure catchments stay on top
+            if (catchmentsLayer) {
+              catchmentsLayer.bringToFront();
+            }
             
             statusEl.textContent = 'Census tract data loaded successfully';
             updateLegend(currentField);
@@ -723,7 +735,7 @@
               map.removeLayer(tractsLayer);
             }
             
-            // Add tracts to map with styling based to current field
+            // Add tracts to map with styling based on current field
             tractsLayer = L.geoJSON(geojsonData, {
               style: getStyleForField,
               onEachFeature: function(feature, layer) {
@@ -740,6 +752,11 @@
                 });
               }
             }).addTo(map);
+            
+            // Ensure catchments stay on top
+            if (catchmentsLayer) {
+              catchmentsLayer.bringToFront();
+            }
             
             statusEl.textContent = 'Census tract data loaded successfully (GeoJSON)';
             updateLegend(currentField);
