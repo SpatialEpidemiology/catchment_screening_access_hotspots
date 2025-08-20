@@ -202,49 +202,6 @@
       box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
     }
     
-    .zoom-controls {
-      position: absolute;
-      top: 80px;
-      right: 10px;
-      z-index: 1000;
-      display: flex;
-      flex-direction: column;
-      gap: 5px;
-      transition: all 0.3s ease;
-    }
-    
-    .zoom-btn {
-      width: 40px;
-      height: 40px;
-      background: rgba(255, 255, 255, 0.9);
-      border: 1px solid #ccc;
-      border-radius: 4px;
-      font-size: 18px;
-      font-weight: bold;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      box-shadow: 0 1px 5px rgba(0, 0, 0, 0.1);
-      transition: all 0.3s ease;
-    }
-    
-    .zoom-btn:hover {
-      background: #f8f9fa;
-    }
-    
-    .tract-popup {
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      max-width: 300px;
-    }
-    
-    .tract-popup h4 {
-      margin: 0 0 10px 0;
-      color: #2c3e50;
-      border-bottom: 1px solid #eee;
-      padding-bottom: 5px;
-    }
-    
     .note-panel {
       position: absolute;
       bottom: 17px;
@@ -320,6 +277,30 @@
       border-bottom: none;
     }
     
+    /* Move native Leaflet zoom control to top right */
+    .leaflet-control-zoom {
+      margin-top: 80px !important;
+      margin-right: 10px !important;
+      border: none !important;
+    }
+    
+    .leaflet-control-zoom a {
+      background-color: rgba(255, 255, 255, 0.9) !important;
+      border: 1px solid #ccc !important;
+      border-radius: 4px !important;
+      color: #333 !important;
+      width: 30px !important;
+      height: 30px !important;
+      line-height: 30px !important;
+      font-size: 18px !important;
+      margin-bottom: 5px !important;
+      box-shadow: 0 1px 5px rgba(0, 0, 0, 0.1) !important;
+    }
+    
+    .leaflet-control-zoom a:hover {
+      background-color: #f8f9fa !important;
+    }
+    
     /* Mobile Responsive Styles */
     @media (max-width: 768px) {
       .control-panel {
@@ -353,17 +334,6 @@
         padding: 8px 15px;
       }
       
-      .zoom-controls {
-        top: 70px;
-        right: 5px;
-      }
-      
-      .zoom-btn {
-        width: 35px;
-        height: 35px;
-        font-size: 16px;
-      }
-      
       .note-panel {
         font-size: 10px;
         padding: 8px 12px;
@@ -388,6 +358,19 @@
       .legend .line-box {
         height: 6px; /* Adjusted for mobile */
       }
+      
+      /* Adjust zoom control for mobile */
+      .leaflet-control-zoom {
+        margin-top: 70px !important;
+        margin-right: 5px !important;
+      }
+      
+      .leaflet-control-zoom a {
+        width: 28px !important;
+        height: 28px !important;
+        line-height: 28px !important;
+        font-size: 16px !important;
+      }
     }
     
     @media (max-width: 480px) {
@@ -407,10 +390,6 @@
         padding: 6px 12px;
       }
       
-      .zoom-controls {
-        top: 60px;
-      }
-      
       .note-panel {
         font-size: 9px;
         padding: 6px 10px;
@@ -418,6 +397,11 @@
       
       .status-bar {
         font-size: 9px;
+      }
+      
+      /* Further adjust zoom control for small screens */
+      .leaflet-control-zoom {
+        margin-top: 60px !important;
       }
     }
     
@@ -486,11 +470,6 @@
     <p>Loading TopoJSON data. This may take a moment...</p>
   </div>
 
-  <div class="zoom-controls">
-    <button class="zoom-btn" id="zoomIn">+</button>
-    <button class="zoom-btn" id="zoomOut">-</button>
-  </div>
-
   <div class="note-panel">
     Note: Overlapping clusters are adjusted for ADI, urban/rural, Hispanic/Latino %, NHB %, & uninsured %.<br>Clusters are overlap given the values of these variables and not just low access & low screening.
   </div>
@@ -505,28 +484,24 @@
     document.addEventListener('DOMContentLoaded', function() {
       const statusEl = document.getElementById('status');
       const loadingIndicator = document.getElementById('loadingIndicator');
-      const zoomInBtn = document.getElementById('zoomIn');
-      const zoomOutBtn = document.getElementById('zoomOut');
       const toggleControlsBtn = document.getElementById('toggleControls');
       const controlPanel = document.querySelector('.control-panel');
       const legend = document.querySelector('.legend');
       
-      // Initialize map
-      const map = L.map('map').setView([33.5186, -86.8104], 7);
+      // Initialize map with zoom control in top right
+      const map = L.map('map', {
+        zoomControl: false  // Disable default zoom control to position it manually
+      }).setView([33.5186, -86.8104], 7);
       
       // Add base tile layer
       L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
         attribution: '&copy; OpenStreetMap &copy; CartoDB'
       }).addTo(map);
       
-      // Add zoom controls
-      zoomInBtn.addEventListener('click', () => {
-        map.zoomIn();
-      });
-      
-      zoomOutBtn.addEventListener('click', () => {
-        map.zoomOut();
-      });
+      // Add zoom control to top right
+      L.control.zoom({
+        position: 'topright'
+      }).addTo(map);
       
       // Toggle controls on mobile
       toggleControlsBtn.addEventListener('click', () => {
@@ -684,7 +659,7 @@
         if (tractProps) {
           content += `<h4>Tract ${tractProps.id || 'Information'}</h4>`;
           
-          // Cluster Type section only
+          // Cluster Type section
           content += `<div class="section">`;
           content += `<div class="section-title">Cluster Type</div>`;
           content += `<div class="data-row"><span class="data-value">${tractProps[currentField] || 'N/A'}</span></div>`;
