@@ -316,7 +316,7 @@
         
         // Determine which TopoJSON file to load based on current field
         const confidenceLevel = currentField.includes('_99') ? '99' : '95';
-        const topojsonFile = `assets/sc_acc_hot_spots_overlap_${confidenceLevel}.json`;
+        const topojsonFile = `assets/sc_acc_hot_spots_overlap_${confidenceLevel}.topojson`;
         
         return fetch(topojsonFile)
           .then(response => {
