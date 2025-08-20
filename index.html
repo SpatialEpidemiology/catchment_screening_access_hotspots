@@ -207,15 +207,13 @@
   
   <div id="map"></div>
 
-<div class="control-panel">
-  <h3>Cluster Layers</h3>
-  <div class="radio-group">
-    <label onclick="switchLayer('COLON_SCRE')">CRC screening (%)</label>
-    <label onclick="switchLayer('fin100k')">Primary care providers per 100k</label>
-    <label onclick="switchLayer('overlap_type')">Access-screening overlap</label>
-    <label onclick="switchLayer('overlap_type_99')">Access-screening overlap (99%)</label>
-  </div>
-</div>
+  <div class="control-panel">
+    <h3>95% Credible Interval Cluster</h3>
+    <div class="radio-group">
+      <label><input type="radio" name="tractField" value="COLON_SCRE" checked> CRC screening (%)</label>
+      <label><input type="radio" name="tractField" value="fin100k"> Primary care providers per 100k</label>
+      <label><input type="radio" name="tractField" value="overlap_type"> Access-screening overlap</label>
+    </div>
 
     <h3>99% Credible Interval Cluster</h3>
     <div class="radio-group">
@@ -279,14 +277,15 @@
             statusEl.textContent = 'Rendering catchments...';
             catchmentsData = geojson.features;
             
-catchmentsLayer = L.geoJSON(geojson, {
-  style: { 
-    color: '#ff6600', // Bright orange border
-    weight: 2, 
-    fillOpacity: 0,  // No fill
-    dashArray: '5, 8', // Dashed line
-    opacity: 0.9
-  },
+            // Add catchments to map with black dashed borders and no fill
+            catchmentsLayer = L.geoJSON(geojson, {
+              style: { 
+                color: '#000000', // Black border
+                weight: 2, 
+                fillOpacity: 0,  // No fill
+                dashArray: '5, 8', // Dashed line
+                opacity: 0.7
+              },
               onEachFeature: (feature, layer) => {
                 // Store reference to the original feature
                 layer.feature = feature;
@@ -500,9 +499,6 @@ catchmentsLayer = L.geoJSON(geojson, {
             <div class="legend-item"><span class="color-box" style="background:#4292c6;"></span>40-59%</div>
             <div class="legend-item"><span class="color-box" style="background:#6baed6;"></span>20-39%</div>
             <div class="legend-item"><span class="color-box" style="background:#9ecae1;"></span>0-19%</div>
-             <div class="legend-item">
-            <span class="color-box" style="border: 2px dashed #ff6600; background: transparent;"></span>Catchment boundary
-             </div>
           `;
         } else if (baseField === 'fin100k') {
           html += `
@@ -511,18 +507,12 @@ catchmentsLayer = L.geoJSON(geojson, {
             <div class="legend-item"><span class="color-box" style="background:#985ea7;"></span>60-89</div>
             <div class="legend-item"><span class="color-box" style="background:#b68bc1;"></span>30-59</div>
             <div class="legend-item"><span class="color-box" style="background:#d5b6da;"></span>0-29</div>
-              <div class="legend-item">
-             <span class="color-box" style="border: 2px dashed #ff6600; background: transparent;"></span>Catchment boundary
-             </div>
           `;
         } else if (baseField === 'overlap_type') {
           html += `
             <div class="legend-item"><span class="color-box" style="background:#d73027;"></span>Low Screening-Low Access</div>
             <div class="legend-item"><span class="color-box" style="background:#1a9850;"></span>High Screening-High Access</div>
             <div class="legend-item"><span class="color-box" style="background:#999999;"></span>Non-significant</div>
-              <div class="legend-item">
-            <span class="color-box" style="border: 2px dashed #ff6600; background: transparent;"></span>Catchment boundary
-            </div>
           `;
         }
 
@@ -612,15 +602,6 @@ catchmentsLayer = L.geoJSON(geojson, {
           }
         });
       });
-
-      function switchLayer(fieldName) {
-  currentField = fieldName;
-  loadTopoJSONTracts().catch(error => {
-    console.error('Error switching layer:', error);
-    statusEl.textContent = 'Error loading census tract data';
-  });
-}
-
       
       // Start the initialization process
       loadCatchments()
