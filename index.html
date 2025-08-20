@@ -8,6 +8,9 @@
   <!-- Leaflet CSS -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css"/>
   
+  <!-- Turf.js for spatial analysis -->
+  <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
+  
   <style>
     html, body, #map { 
       height: 100%; 
@@ -82,7 +85,7 @@
     .legend .line-box {
       display: inline-block;
       width: 20px;
-      height: 7.5px; /* Increased by 50% to match catchment border */
+      height: 7.5px;
       margin-right: 8px;
       vertical-align: middle;
       background: #FF9900;
@@ -356,7 +359,7 @@
       }
       
       .legend .line-box {
-        height: 6px; /* Adjusted for mobile */
+        height: 6px;
       }
       
       /* Adjust zoom control for mobile */
@@ -542,26 +545,6 @@
                 fillOpacity: 0,   // No fill
                 dashArray: '5, 8', // Dashed line
                 opacity: 0.9
-              },
-              onEachFeature: (feature, layer) => {
-                // Store reference to the original feature
-                layer.feature = feature;
-                
-                // Add popup for each catchment
-                if (feature.properties && feature.properties.name) {
-                  layer.bindPopup(`
-                    <div class="combined-popup">
-                      <h4>Catchment Area</h4>
-                      <div class="section">
-                        <div class="section-title">Catchment Information</div>
-                        <div class="data-row">
-                          <span class="data-label">Name:</span>
-                          <span class="data-value">${feature.properties.name}</span>
-                        </div>
-                      </div>
-                    </div>
-                  `);
-                }
               }
             }).addTo(map);
             
@@ -611,20 +594,7 @@
             
             // Add tracts to map with styling based on current field
             tractsLayer = L.geoJSON(geojson, {
-              style: getStyleForField,
-              onEachFeature: function(feature, layer) {
-                // Add click handler for tracts
-                layer.on('click', function(e) {
-                  const props = e.target.feature.properties;
-                  const clickedLatLng = e.latlng;
-                  
-                  // Find all catchments that contain the clicked point
-                  const overlappingCatchments = findOverlappingCatchments(clickedLatLng);
-                  
-                  // Show combined popup with tract info and catchment info
-                  showCombinedPopup(clickedLatLng, props, overlappingCatchments, confidenceLevel);
-                });
-              }
+              style: getStyleForField
             }).addTo(map);
             
             // Ensure catchments stay on top
@@ -652,42 +622,6 @@
           });
       }
       
-      // Show combined popup with tract and catchment information
-      function showCombinedPopup(latlng, tractProps, catchments, confidenceLevel) {
-        let content = `<div class="combined-popup">`;
-        
-        if (tractProps) {
-          content += `<h4>Tract ${tractProps.id || 'Information'}</h4>`;
-          
-          // Cluster Type section
-          content += `<div class="section">`;
-          content += `<div class="section-title">Cluster Type</div>`;
-          content += `<div class="data-row"><span class="data-value">${tractProps[currentField] || 'N/A'}</span></div>`;
-          content += `</div>`;
-        }
-        
-        // Catchment section - show all overlapping catchments
-        if (catchments && catchments.length > 0) {
-          content += `<div class="section">`;
-          content += `<div class="section-title">Overlapping Catchments (${catchments.length})</div>`;
-          content += `<div class="catchment-list">`;
-          
-          catchments.forEach((catchment, index) => {
-            const name = catchment.properties?.name || `Catchment ${index + 1}`;
-            content += `<div class="catchment-list-item">${name}</div>`;
-          });
-          
-          content += `</div></div>`;
-        }
-        
-        content += `</div>`;
-        
-        L.popup()
-          .setLatLng(latlng)
-          .setContent(content)
-          .openOn(map);
-      }
-      
       // Load GeoJSON census tracts as fallback
       function loadGeoJSONTracts() {
         showLoading(true);
@@ -712,20 +646,7 @@
             
             // Add tracts to map with styling based on current field
             tractsLayer = L.geoJSON(geojsonData, {
-              style: getStyleForField,
-              onEachFeature: function(feature, layer) {
-                // Add click handler for tracts
-                layer.on('click', function(e) {
-                  const props = e.target.feature.properties;
-                  const clickedLatLng = e.latlng;
-                  
-                  // Find all catchments that contain the clicked point
-                  const overlappingCatchments = findOverlappingCatchments(clickedLatLng);
-                  
-                  // Show combined popup with tract info and catchment info
-                  showCombinedPopup(clickedLatLng, props, overlappingCatchments, confidenceLevel);
-                });
-              }
+              style: getStyleForField
             }).addTo(map);
             
             // Ensure catchments stay on top
@@ -780,57 +701,44 @@
         legend.innerHTML = html;
       }
       
-      // Find all catchments that contain a given point
-      function findOverlappingCatchments(latlng) {
-        const overlapping = [];
+      // Find all features that contain a given point using Turf.js
+      function findFeaturesAtPoint(latlng) {
+        const point = turf.point([latlng.lng, latlng.lat]);
+        const features = [];
         
-        // Check each catchment layer
-        catchmentsLayer.eachLayer(layer => {
-          try {
-            // Use Leaflet's built-in contains method for accuracy
-            if (layer.getBounds && layer.getBounds().contains(latlng)) {
-              // For more precise checking with complex polygons
-              if (isPointInPolygon(latlng, layer)) {
-                overlapping.push(layer.feature);
+        // Check tracts
+        if (tractsLayer) {
+          tractsLayer.eachLayer(layer => {
+            try {
+              if (turf.booleanPointInPolygon(point, layer.toGeoJSON())) {
+                features.push({
+                  type: 'tract',
+                  properties: layer.feature.properties
+                });
               }
+            } catch (e) {
+              console.error('Error checking point in tract polygon:', e);
             }
-          } catch (e) {
-            console.error('Error checking point in polygon:', e);
-          }
-        });
-        
-        return overlapping;
-      }
-      
-      // Simple point-in-polygon check using ray casting algorithm
-      function isPointInPolygon(latlng, layer) {
-        const point = [latlng.lng, latlng.lat];
-        let latlngs = [];
-        
-        // Get the coordinates from the layer
-        if (layer.getLatLngs) {
-          latlngs = layer.getLatLngs();
-          if (latlngs.length > 0 && Array.isArray(latlngs[0])) {
-            // This is a polygon with multiple rings
-            latlngs = latlngs[0]; // Use the first ring (exterior)
-          }
+          });
         }
         
-        // Convert to simple array of points
-        const points = latlngs.map(latlng => [latlng.lng, latlng.lat]);
-        
-        // Ray casting algorithm
-        let inside = false;
-        for (let i = 0, j = points.length - 1; i < points.length; j = i++) {
-          const xi = points[i][0], yi = points[i][1];
-          const xj = points[j][0], yj = points[j][1];
-          
-          const intersect = ((yi > point[1]) !== (yj > point[1])) &&
-            (point[0] < (xj - xi) * (point[1] - yi) / (yj - yi) + xi);
-          if (intersect) inside = !inside;
+        // Check catchments
+        if (catchmentsLayer) {
+          catchmentsLayer.eachLayer(layer => {
+            try {
+              if (turf.booleanPointInPolygon(point, layer.toGeoJSON())) {
+                features.push({
+                  type: 'catchment',
+                  properties: layer.feature.properties
+                });
+              }
+            } catch (e) {
+              console.error('Error checking point in catchment polygon:', e);
+            }
+          });
         }
         
-        return inside;
+        return features;
       }
       
       // Setup radio buttons event listeners
@@ -845,6 +753,59 @@
           }
         });
       });
+      
+      // Add click event to map for detecting overlapping features
+      map.on('click', function(e) {
+        const clickedLatLng = e.latlng;
+        const features = findFeaturesAtPoint(clickedLatLng);
+        
+        if (features.length > 0) {
+          showCombinedPopup(clickedLatLng, features);
+        }
+      });
+      
+      // Show combined popup with all features at the clicked point
+      function showCombinedPopup(latlng, features) {
+        let content = `<div class="combined-popup">`;
+        
+        // Group features by type
+        const tracts = features.filter(f => f.type === 'tract');
+        const catchments = features.filter(f => f.type === 'catchment');
+        
+        // Add tract information
+        if (tracts.length > 0) {
+          content += `<h4>Tract Information</h4>`;
+          
+          tracts.forEach((tract, index) => {
+            const props = tract.properties;
+            content += `<div class="section">`;
+            content += `<div class="section-title">Tract ${props.id || 'Information'}</div>`;
+            content += `<div class="data-row"><span class="data-label">Cluster Type:</span> <span class="data-value">${props[currentField] || 'N/A'}</span></div>`;
+            content += `</div>`;
+          });
+        }
+        
+        // Add catchment information
+        if (catchments.length > 0) {
+          content += `<div class="section">`;
+          content += `<div class="section-title">Catchment Areas (${catchments.length})</div>`;
+          content += `<div class="catchment-list">`;
+          
+          catchments.forEach((catchment, index) => {
+            const name = catchment.properties?.name || `Catchment ${index + 1}`;
+            content += `<div class="catchment-list-item">${name}</div>`;
+          });
+          
+          content += `</div></div>`;
+        }
+        
+        content += `</div>`;
+        
+        L.popup()
+          .setLatLng(latlng)
+          .setContent(content)
+          .openOn(map);
+      }
       
       // Start the initialization process
       loadCatchments()
