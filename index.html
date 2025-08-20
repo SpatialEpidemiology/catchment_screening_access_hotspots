@@ -268,7 +268,7 @@
       function loadCatchments() {
         statusEl.textContent = 'Loading catchments...';
         
-        return fetch('assets/catchments.json')
+        return fetch('https://raw.githubusercontent.com/SpatialEpidemiology/catchment_screening_access_hotspots/main/assets/catchments.json')
           .then(response => {
             if (!response.ok) throw new Error('Failed to load catchments: ' + response.status);
             return response.json();
@@ -316,7 +316,7 @@
         
         // Determine which TopoJSON file to load based on current field
         const confidenceLevel = currentField.includes('_99') ? '99' : '95';
-        const topojsonFile = `assets/sc_acc_hot_spots_overlap_${confidenceLevel}.topojson`;
+        const topojsonFile = `https://raw.githubusercontent.com/SpatialEpidemiology/catchment_screening_access_hotspots/main/assets/sc_acc_hot_spots_overlap_${confidenceLevel}_simpl_topo.json`;
         
         return fetch(topojsonFile)
           .then(response => {
@@ -398,7 +398,7 @@
         
         // Determine which GeoJSON file to load based on current field
         const confidenceLevel = currentField.includes('_99') ? '99' : '95';
-        const geojsonFile = `assets/sc_acc_hot_spots_overlap_${confidenceLevel}.geojson`;
+        const geojsonFile = `https://raw.githubusercontent.com/SpatialEpidemiology/catchment_screening_access_hotspots/main/assets/sc_acc_hot_spots_overlap_${confidenceLevel}_simpl.json`;
         
         return fetch(geojsonFile)
           .then(response => {
