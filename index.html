@@ -45,7 +45,7 @@
 
     .legend {
       position: absolute;
-      bottom: 70px; /* Adjusted to make room for the note */
+      bottom: 70px;
       right: 20px;
       background: rgba(255, 255, 255, 0.95);
       padding: 15px;
@@ -73,6 +73,16 @@
       vertical-align: middle;
       border-radius: 3px;
       border: 1px solid rgba(0, 0, 0, 0.2);
+    }
+    
+    .legend .line-box {
+      display: inline-block;
+      width: 20px;
+      height: 5px;
+      margin-right: 8px;
+      vertical-align: middle;
+      background: #FF9900;
+      border-radius: 2px;
     }
     
     .legend-item {
@@ -201,7 +211,7 @@
     
     .zoom-controls {
       position: absolute;
-      top: 80px; /* Moved to top right */
+      top: 80px;
       right: 10px;
       z-index: 1000;
       display: flex;
@@ -279,6 +289,64 @@
       box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
       text-align: center;
     }
+    
+    .combined-popup {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      max-width: 320px;
+    }
+    
+    .combined-popup h4 {
+      margin: 0 0 10px 0;
+      color: #2c3e50;
+      border-bottom: 1px solid #eee;
+      padding-bottom: 5px;
+    }
+    
+    .combined-popup .section {
+      margin-bottom: 15px;
+    }
+    
+    .combined-popup .section-title {
+      font-weight: bold;
+      color: #2c3e50;
+      margin-bottom: 8px;
+      padding-bottom: 3px;
+      border-bottom: 1px solid #f0f0f0;
+    }
+    
+    .combined-popup .data-row {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 4px;
+    }
+    
+    .combined-popup .data-label {
+      font-weight: 500;
+      color: #555;
+    }
+    
+    .combined-popup .data-value {
+      font-weight: 600;
+      color: #2c3e50;
+    }
+    
+    .catchment-list {
+      margin-top: 5px;
+      max-height: 120px;
+      overflow-y: auto;
+      padding: 5px;
+      background: #f9f9f9;
+      border-radius: 4px;
+    }
+    
+    .catchment-list-item {
+      padding: 5px;
+      border-bottom: 1px solid #eee;
+    }
+    
+    .catchment-list-item:last-child {
+      border-bottom: none;
+    }
   </style>
 </head>
 <body>
@@ -302,6 +370,7 @@
       <div class="legend-item"><span class="color-box" style="background:#d73027;"></span>Low Screening-Low Access</div>
       <div class="legend-item"><span class="color-box" style="background:#1a9850;"></span>High Screening-High Access</div>
       <div class="legend-item"><span class="color-box" style="background:#999999;"></span>Non-significant</div>
+      <div class="legend-item"><span class="line-box"></span>Catchment Areas</div>
     </div>
   </div>
   
@@ -319,7 +388,7 @@
   </div>
 
   <div class="note-panel">
-    Note: Overlapping clusters are adjusted for ADI, urban/rural, Hispanic/Latino %, NHB %, & uninsured %. Clusters overlap given the values of these variables and not just low access & low screening.
+    Note: Overlapping clusters are adjusted for ADI, urban/rural, Hispanic/Latino %, NHB %, & uninsured %. Clusters are overlap given the values of these variables and not just low access & low screening.
   </div>
 
   <!-- Load scripts -->
@@ -374,14 +443,14 @@
             statusEl.textContent = 'Rendering catchments...';
             catchmentsData = geojson.features;
             
-            // Add catchments to map with black dashed borders and no fill
+            // Add catchments to map with bright orange dashed borders and no fill
             catchmentsLayer = L.geoJSON(geojson, {
               style: { 
-                color: '#000000', // Black border
-                weight: 2, 
+                color: '#FF9900', // Bright orange border
+                weight: 3, 
                 fillOpacity: 0,  // No fill
                 dashArray: '5, 8', // Dashed line
-                opacity: 0.7
+                opacity: 0.9
               },
               onEachFeature: (feature, layer) => {
                 // Store reference to the original feature
@@ -397,7 +466,7 @@
               const overlappingCatchments = findOverlappingCatchments(clickedLatLng);
               
               if (overlappingCatchments.length > 0) {
-                showCatchmentsPopup(clickedLatLng, overlappingCatchments);
+                showCombinedPopup(clickedLatLng, null, overlappingCatchments);
               }
             });
             
@@ -449,7 +518,13 @@
                 // Add click handler for tracts
                 layer.on('click', function(e) {
                   const props = e.target.feature.properties;
-                  showTractPopup(e.latlng, props, confidenceLevel);
+                  const clickedLatLng = e.latlng;
+                  
+                  // Find all catchments that contain the clicked point
+                  const overlappingCatchments = findOverlappingCatchments(clickedLatLng);
+                  
+                  // Show combined popup with tract info and catchment info
+                  showCombinedPopup(clickedLatLng, props, overlappingCatchments, confidenceLevel);
                 });
               }
             }).addTo(map);
@@ -474,31 +549,48 @@
           });
       }
       
-      // Show detailed tract information in popup
-      function showTractPopup(latlng, props, confidenceLevel) {
-        let content = `<div class="tract-popup">`;
-        content += `<h4>Tract ${props.id || 'Information'}</h4>`;
+      // Show combined popup with tract and catchment information
+      function showCombinedPopup(latlng, tractProps, catchments, confidenceLevel) {
+        let content = `<div class="combined-popup">`;
         
-        // CRC Screening section
-        content += `<div class="section">`;
-        content += `<div class="section-title">CRC Screening (%)</div>`;
-        content += `<div class="data-row"><span class="data-label">95% Credible Interval:</span> <span class="data-value">${props.COLON_SCRE || 'N/A'}%</span></div>`;
-        content += `<div class="data-row"><span class="data-label">99% Credible Interval:</span> <span class="data-value">${props.COLON_SCRE_99 || 'N/A'}%</span></div>`;
-        content += `</div>`;
+        if (tractProps) {
+          content += `<h4>Tract ${tractProps.id || 'Information'}</h4>`;
+          
+          // CRC Screening section
+          content += `<div class="section">`;
+          content += `<div class="section-title">CRC Screening (%)</div>`;
+          content += `<div class="data-row"><span class="data-label">95% Credible Interval:</span> <span class="data-value">${tractProps.COLON_SCRE || 'N/A'}%</span></div>`;
+          content += `<div class="data-row"><span class="data-label">99% Credible Interval:</span> <span class="data-value">${tractProps.COLON_SCRE_99 || 'N/A'}%</span></div>`;
+          content += `</div>`;
+          
+          // Primary Care Providers section
+          content += `<div class="section">`;
+          content += `<div class="section-title">Primary Care Providers per 100k</div>`;
+          content += `<div class="data-row"><span class="data-label">95% Credible Interval:</span> <span class="data-value">${tractProps.fin100k || 'N/A'}</span></div>`;
+          content += `<div class="data-row"><span class="data-label">99% Credible Interval:</span> <span class="data-value">${tractProps.fin100k_99 || 'N/A'}</span></div>`;
+          content += `</div>`;
+          
+          // Cluster Type section
+          content += `<div class="section">`;
+          content += `<div class="section-title">Cluster Type</div>`;
+          content += `<div class="data-row"><span class="data-label">95% Credible Interval:</span> <span class="data-value">${tractProps.overlap_type || 'N/A'}</span></div>`;
+          content += `<div class="data-row"><span class="data-label">99% Credible Interval:</span> <span class="data-value">${tractProps.overlap_type_99 || 'N/A'}</span></div>`;
+          content += `</div>`;
+        }
         
-        // Primary Care Providers section
-        content += `<div class="section">`;
-        content += `<div class="section-title">Primary Care Providers per 100k</div>`;
-        content += `<div class="data-row"><span class="data-label">95% Credible Interval:</span> <span class="data-value">${props.fin100k || 'N/A'}</span></div>`;
-        content += `<div class="data-row"><span class="data-label">99% Credible Interval:</span> <span class="data-value">${props.fin100k_99 || 'N/A'}</span></div>`;
-        content += `</div>`;
-        
-        // Cluster Type section
-        content += `<div class="section">`;
-        content += `<div class="section-title">Cluster Type</div>`;
-        content += `<div class="data-row"><span class="data-label">95% Credible Interval:</span> <span class="data-value">${props.overlap_type || 'N/A'}</span></div>`;
-        content += `<div class="data-row"><span class="data-label">99% Credible Interval:</span> <span class="data-value">${props.overlap_type_99 || 'N/A'}</span></div>`;
-        content += `</div>`;
+        // Catchment section
+        if (catchments && catchments.length > 0) {
+          content += `<div class="section">`;
+          content += `<div class="section-title">Catchment Areas (${catchments.length})</div>`;
+          content += `<div class="catchment-list">`;
+          
+          catchments.forEach((catchment, index) => {
+            const name = catchment.properties?.name || `Catchment ${index + 1}`;
+            content += `<div class="catchment-list-item">${name}</div>`;
+          });
+          
+          content += `</div></div>`;
+        }
         
         content += `</div>`;
         
@@ -537,7 +629,13 @@
                 // Add click handler for tracts
                 layer.on('click', function(e) {
                   const props = e.target.feature.properties;
-                  showTractPopup(e.latlng, props, confidenceLevel);
+                  const clickedLatLng = e.latlng;
+                  
+                  // Find all catchments that contain the clicked point
+                  const overlappingCatchments = findOverlappingCatchments(clickedLatLng);
+                  
+                  // Show combined popup with tract info and catchment info
+                  showCombinedPopup(clickedLatLng, props, overlappingCatchments, confidenceLevel);
                 });
               }
             }).addTo(map);
@@ -582,6 +680,7 @@
             <div class="legend-item"><span class="color-box" style="background:#d73027;"></span>Low Screening-Low Access</div>
             <div class="legend-item"><span class="color-box" style="background:#1a9850;"></span>High Screening-High Access</div>
             <div class="legend-item"><span class="color-box" style="background:#999999;"></span>Non-significant</div>
+            <div class="legend-item"><span class="line-box"></span>Catchment Areas</div>
           `;
         }
 
@@ -639,24 +738,6 @@
         }
         
         return inside;
-      }
-      
-      // Show popup with all overlapping catchments
-      function showCatchmentsPopup(latlng, catchments) {
-        let content = `<div class="catchment-popup-content">`;
-        content += `<strong>${catchments.length} Catchment${catchments.length > 1 ? 's' : ''} at this location:</strong><br><br>`;
-        
-        catchments.forEach((catchment, index) => {
-          const name = catchment.properties?.name || `Catchment ${index + 1}`;
-          content += `<div class="catchment-item">${name}</div>`;
-        });
-        
-        content += `</div>`;
-        
-        L.popup()
-          .setLatLng(latlng)
-          .setContent(content)
-          .openOn(map);
       }
       
       // Setup radio buttons event listeners
