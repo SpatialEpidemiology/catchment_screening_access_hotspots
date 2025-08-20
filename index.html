@@ -4,13 +4,8 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Primary Care Access & CRC Screening Overlapping Clusters</title>
-
-  <!-- Leaflet CSS -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css"/>
-  
-  <!-- Turf.js for spatial analysis -->
   <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
-  
   <style>
     html, body, #map { 
       height: 100%; 
@@ -37,7 +32,6 @@
       max-width: 260px;
       box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);
       border: 1px solid #ddd;
-      transition: all 0.3s ease;
     }
     
     .control-panel h3 {
@@ -61,7 +55,6 @@
       max-width: 300px;
       box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);
       border: 1px solid #ddd;
-      transition: all 0.3s ease;
     }
     
     .legend h3 {
@@ -107,7 +100,6 @@
       align-items: center;
       margin: 5px 0;
       cursor: pointer;
-      transition: all 0.2s;
       padding: 5px;
       border-radius: 4px;
     }
@@ -127,7 +119,6 @@
       right: 0;
       text-align: center;
       z-index: 1000;
-      transition: all 0.3s ease;
     }
     
     .title-bar h1 {
@@ -139,7 +130,6 @@
       color: #2c3e50;
       box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
       margin: 0;
-      transition: all 0.3s ease;
     }
     
     .status-bar {
@@ -152,44 +142,6 @@
       font-size: 12px;
       z-index: 1000;
       box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-      transition: all 0.3s ease;
-    }
-    
-    .error-panel {
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      background: rgba(255, 255, 255, 0.95);
-      padding: 20px;
-      border-radius: 8px;
-      z-index: 2000;
-      text-align: center;
-      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
-      max-width: 400px;
-    }
-    
-    .error-panel h2 {
-      color: #d9534f;
-      margin-top: 0;
-    }
-    
-    .error-panel p {
-      margin-bottom: 15px;
-    }
-    
-    .btn {
-      background: #5bc0de;
-      color: white;
-      border: none;
-      padding: 8px 15px;
-      border-radius: 4px;
-      cursor: pointer;
-      font-size: 14px;
-    }
-    
-    .btn:hover {
-      background: #46b8da;
     }
     
     .loading-indicator {
@@ -218,7 +170,6 @@
       box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
       text-align: center;
       white-space: nowrap;
-      transition: all 0.3s ease;
       max-width: 90%;
     }
     
@@ -280,7 +231,6 @@
       border-bottom: none;
     }
     
-    /* Move native Leaflet zoom control to top right */
     .leaflet-control-zoom {
       margin-top: 80px !important;
       margin-right: 10px !important;
@@ -304,7 +254,6 @@
       background-color: #f8f9fa !important;
     }
     
-    /* Mobile Responsive Styles */
     @media (max-width: 768px) {
       .control-panel {
         max-width: 200px;
@@ -316,7 +265,6 @@
       
       .control-panel h3 {
         font-size: 14px;
-        padding-bottom: 5px;
       }
       
       .legend {
@@ -329,7 +277,6 @@
       
       .legend h3 {
         font-size: 14px;
-        padding-bottom: 5px;
       }
       
       .title-bar h1 {
@@ -362,7 +309,6 @@
         height: 6px;
       }
       
-      /* Adjust zoom control for mobile */
       .leaflet-control-zoom {
         margin-top: 70px !important;
         margin-right: 5px !important;
@@ -402,40 +348,8 @@
         font-size: 9px;
       }
       
-      /* Further adjust zoom control for small screens */
       .leaflet-control-zoom {
         margin-top: 60px !important;
-      }
-    }
-    
-    /* Toggle button for mobile controls */
-    .mobile-toggle {
-      display: none;
-      position: absolute;
-      bottom: 10px;
-      right: 10px;
-      z-index: 1000;
-      background: rgba(255, 255, 255, 0.9);
-      border: 1px solid #ccc;
-      border-radius: 4px;
-      padding: 5px 10px;
-      font-size: 12px;
-      cursor: pointer;
-    }
-    
-    @media (max-width: 768px) {
-      .mobile-toggle {
-        display: block;
-      }
-      
-      .control-panel.collapsed {
-        transform: translateX(-100%);
-        opacity: 0;
-      }
-      
-      .legend.collapsed {
-        transform: translateX(100%);
-        opacity: 0;
       }
     }
   </style>
@@ -459,7 +373,7 @@
     <h3>Legend</h3>
     <div id="legend-content">
       <div class="legend-item"><span class="color-box" style="background:#d73027;"></span>Low Screening-Low Access</div>
-      <div class="legend-item"><span class="color-box" style="background:#1a9850;"></span>High Screening-High Access</div>
+      <div class="legend-item"><span class="color-box" style="background:#4575b4;"></span>High Screening-High Access</div>
       <div class="legend-item"><span class="color-box" style="background:#999999;"></span>Non-significant</div>
       <div class="legend-item"><span class="line-box"></span>Catchment Areas</div>
     </div>
@@ -470,16 +384,13 @@
   </div>
 
   <div class="loading-indicator" id="loadingIndicator" style="display: none;">
-    <p>Loading data. This may take a moment...</p>
+    <p>Loading data...</p>
   </div>
 
   <div class="note-panel">
-    Note: Overlapping clusters are adjusted for ADI, urban/rural, Hispanic/Latino %, NHB %, & uninsured %.<br>Clusters overlap given the values of these variables and not simply low access & low screening.
+    Note: Overlapping clusters are adjusted for ADI, urban/rural, Hispanic/Latino %, NHB %, & uninsured %.
   </div>
 
-  <button class="mobile-toggle" id="toggleControls">Toggle Controls</button>
-
-  <!-- Load scripts -->
   <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
   <script src="https://unpkg.com/topojson-client@3"></script>
   
@@ -487,43 +398,27 @@
     document.addEventListener('DOMContentLoaded', function() {
       const statusEl = document.getElementById('status');
       const loadingIndicator = document.getElementById('loadingIndicator');
-      const toggleControlsBtn = document.getElementById('toggleControls');
-      const controlPanel = document.querySelector('.control-panel');
-      const legend = document.querySelector('.legend');
       
-      // Initialize map with zoom control in top right
       const map = L.map('map', {
-        zoomControl: false  // Disable default zoom control to position it manually
+        zoomControl: false
       }).setView([33.5186, -86.8104], 7);
       
-      // Add base tile layer
       L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
         attribution: '&copy; OpenStreetMap &copy; CartoDB'
       }).addTo(map);
       
-      // Add zoom control to top right
       L.control.zoom({
         position: 'topright'
       }).addTo(map);
       
-      // Toggle controls on mobile
-      toggleControlsBtn.addEventListener('click', () => {
-        controlPanel.classList.toggle('collapsed');
-        legend.classList.toggle('collapsed');
-      });
-      
-      // Store catchments and tracts for overlap detection
       let catchmentsLayer = null;
-      let catchmentsData = [];
       let tractsLayer = null;
       let currentField = 'overlap_type';
       
-      // Function to show loading indicator
       function showLoading(show) {
         loadingIndicator.style.display = show ? 'block' : 'none';
       }
       
-      // Load catchments as GeoJSON
       function loadCatchments() {
         statusEl.textContent = 'Loading catchments...';
         
@@ -534,21 +429,17 @@
           })
           .then(geojson => {
             statusEl.textContent = 'Rendering catchments...';
-            catchmentsData = geojson.features;
             
-            // Add catchments to map with bright orange dashed borders and no fill
-            // Increased border size by 50% (from 3 to 4.5)
             catchmentsLayer = L.geoJSON(geojson, {
               style: { 
-                color: '#FF9900', // Bright orange border
-                weight: 4.5,      // Increased by 50% (from 3 to 4.5)
-                fillOpacity: 0,   // No fill
-                dashArray: '5, 8', // Dashed line
+                color: '#FF9900',
+                weight: 4.5,
+                fillOpacity: 0,
+                dashArray: '5, 8',
                 opacity: 0.9
               }
             }).addTo(map);
             
-            // Bring catchments to the front
             catchmentsLayer.bringToFront();
             
             statusEl.textContent = 'Catchments loaded successfully';
@@ -556,12 +447,10 @@
           });
       }
       
-      // Load TopoJSON census tracts
       function loadTopoJSONTracts() {
         showLoading(true);
         statusEl.textContent = 'Loading census tract data...';
         
-        // Determine which TopoJSON file to load based on current field
         const confidenceLevel = currentField.includes('_99') ? '99' : '95';
         const topojsonFile = `https://raw.githubusercontent.com/SpatialEpidemiology/catchment_screening_access_hotspots/main/assets/sc_acc_hot_spots_overlap_${confidenceLevel}_simpl_topo.json`;
         
@@ -573,12 +462,10 @@
           .then(topojsonData => {
             statusEl.textContent = 'Processing TopoJSON data...';
             
-            // Check if TopoJSON data is valid and has objects
             if (!topojsonData || !topojsonData.objects) {
-              throw new Error('Invalid TopoJSON format: missing objects property');
+              throw new Error('Invalid TopoJSON format');
             }
             
-            // Get the first object key (assuming there's only one object)
             const objectKeys = Object.keys(topojsonData.objects);
             if (objectKeys.length === 0) {
               throw new Error('TopoJSON file does not contain any objects');
@@ -587,17 +474,14 @@
             const firstObjectKey = objectKeys[0];
             const geojson = topojson.feature(topojsonData, topojsonData.objects[firstObjectKey]);
             
-            // Remove existing tracts layer if it exists
             if (tractsLayer) {
               map.removeLayer(tractsLayer);
             }
             
-            // Add tracts to map with styling based on current field
             tractsLayer = L.geoJSON(geojson, {
               style: getStyleForField
             }).addTo(map);
             
-            // Ensure catchments stay on top
             if (catchmentsLayer) {
               catchmentsLayer.bringToFront();
             }
@@ -608,13 +492,11 @@
             return true;
           })
           .catch(error => {
-            console.error('Error loading data:', error);
+            console.error('Error loading TopoJSON:', error);
             statusEl.textContent = 'Error loading census tract data: ' + error.message;
             showLoading(false);
             
-            // Try to load as GeoJSON if TopoJSON fails
             if (error.message.includes('TopoJSON')) {
-              console.log('Trying to load as GeoJSON instead...');
               return loadGeoJSONTracts();
             }
             
@@ -622,77 +504,27 @@
           });
       }
       
-      // Load GeoJSON census tracts as fallback
-      function loadGeoJSONTracts() {
-        showLoading(true);
-        statusEl.textContent = 'Loading census tract data (GeoJSON fallback)...';
-        
-        // Determine which GeoJSON file to load based on current field
-        const confidenceLevel = currentField.includes('_99') ? '99' : '95';
-        const geojsonFile = `https://raw.githubusercontent.com/SpatialEpidemiology/catchment_screening_access_hotspots/main/assets/sc_acc_hot_spots_overlap_${confidenceLevel}_simpl.json`;
-        
-        return fetch(geojsonFile)
-          .then(response => {
-            if (!response.ok) throw new Error('Failed to load GeoJSON: ' + response.status);
-            return response.json();
-          })
-          .then(geojsonData => {
-            statusEl.textContent = 'Processing GeoJSON data...';
-            
-            // Remove existing tracts layer if it exists
-            if (tractsLayer) {
-              map.removeLayer(tractsLayer);
-            }
-            
-            // Add tracts to map with styling based on current field
-            tractsLayer = L.geoJSON(geojsonData, {
-              style: getStyleForField
-            }).addTo(map);
-            
-            // Ensure catchments stay on top
-            if (catchmentsLayer) {
-              catchmentsLayer.bringToFront();
-            }
-            
-            statusEl.textContent = 'Census tract data loaded successfully (GeoJSON)';
-            updateLegend(currentField);
-            showLoading(false);
-            return true;
-          })
-          .catch(error => {
-            console.error('Error loading GeoJSON:', error);
-            statusEl.textContent = 'Error loading census tract data: ' + error.message;
-            showLoading(false);
-            throw error;
-          });
-      }
-      
-      // Get color style for a feature based on the current field
       function getStyleForField(feature) {
         const value = feature.properties[currentField];
         
-        // Handle categorical field
         if (currentField.includes('overlap_type')) {
           if (value === 'Low Screening-Low Access Cluster') return { fillColor: '#d73027', fillOpacity: 0.8, color: '#444', weight: 0.3 };
-          if (value === 'High Screening-High Access Cluster') return { fillColor: '#1a9850', fillOpacity: 0.8, color: '#444', weight: 0.3 };
+          if (value === 'High Screening-High Access Cluster') return { fillColor: '#4575b4', fillOpacity: 0.8, color: '#444', weight: 0.3 };
           if (value === 'Non-significant') return { fillColor: '#999999', fillOpacity: 0.8, color: '#444', weight: 0.3 };
         }
         
         return { fillColor: '#cccccc', fillOpacity: 0.8, color: '#444', weight: 0.3 };
       }
       
-      // Update legend based on current field
       function updateLegend(fieldKey) {
         const baseField = fieldKey.replace(/_\d+$/, '');
         const legend = document.getElementById('legend-content');
         let html = '';
-        
-        const confLevel = fieldKey.includes('_99') ? '99%' : '95%';
 
         if (baseField === 'overlap_type') {
           html += `
             <div class="legend-item"><span class="color-box" style="background:#d73027;"></span>Low Screening-Low Access</div>
-            <div class="legend-item"><span class="color-box" style="background:#1a9850;"></span>High Screening-High Access</div>
+            <div class="legend-item"><span class="color-box" style="background:#4575b4;"></span>High Screening-High Access</div>
             <div class="legend-item"><span class="color-box" style="background:#999999;"></span>Non-significant</div>
             <div class="legend-item"><span class="line-box"></span>Catchment Areas</div>
           `;
@@ -701,12 +533,10 @@
         legend.innerHTML = html;
       }
       
-      // Find all features that contain a given point using Turf.js
       function findFeaturesAtPoint(latlng) {
         const point = turf.point([latlng.lng, latlng.lat]);
         const features = [];
         
-        // Check tracts
         if (tractsLayer) {
           tractsLayer.eachLayer(layer => {
             try {
@@ -722,7 +552,6 @@
           });
         }
         
-        // Check catchments
         if (catchmentsLayer) {
           catchmentsLayer.eachLayer(layer => {
             try {
@@ -741,7 +570,6 @@
         return features;
       }
       
-      // Setup radio buttons event listeners
       document.querySelectorAll('input[name="tractField"]').forEach(radio => {
         radio.addEventListener('change', e => {
           if (e.target.checked) {
@@ -754,7 +582,6 @@
         });
       });
       
-      // Add click event to map for detecting overlapping features
       map.on('click', function(e) {
         const clickedLatLng = e.latlng;
         const features = findFeaturesAtPoint(clickedLatLng);
@@ -764,15 +591,12 @@
         }
       });
       
-      // Show combined popup with all features at the clicked point
       function showCombinedPopup(latlng, features) {
         let content = `<div class="combined-popup">`;
         
-        // Group features by type
         const tracts = features.filter(f => f.type === 'tract');
         const catchments = features.filter(f => f.type === 'catchment');
         
-        // Add tract information
         if (tracts.length > 0) {
           content += `<h4>Tract Information</h4>`;
           
@@ -785,7 +609,6 @@
           });
         }
         
-        // Add catchment information
         if (catchments.length > 0) {
           content += `<div class="section">`;
           content += `<div class="section-title">Catchment Areas (${catchments.length})</div>`;
@@ -807,7 +630,6 @@
           .openOn(map);
       }
       
-      // Start the initialization process
       loadCatchments()
         .then(() => {
           return loadTopoJSONTracts();
@@ -816,11 +638,6 @@
           console.error('Error loading data:', error);
           statusEl.textContent = 'Data load error: ' + error.message;
         });
-        
-      // Handle window resize for responsive adjustments
-      window.addEventListener('resize', function() {
-        // This will trigger the CSS media queries automatically
-      });
     });
   </script>
 </body>
