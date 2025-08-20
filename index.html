@@ -210,15 +210,15 @@
   <div class="control-panel">
     <h3>95% Hotspot Tracts</h3>
     <div class="radio-group">
-      <label><input type="radio" name="tractField" value="COLON_SCRE_95" checked> CRC screening (%)</label>
-      <label><input type="radio" name="tractField" value="fin100k_95"> Primary care providers per 100k</label>
+      <label><input type="radio" name="tractField" value="COLON_SCRE" checked> CRC screening (%)</label>
+      <label><input type="radio" name="tractField" value="fin100k"> Primary care providers per 100k</label>
       <label><input type="radio" name="tractField" value="overlap_type"> Access-screening overlap</label>
     </div>
 
     <h3>99% Hotspot Tracts</h3>
     <div class="radio-group">
-      <label><input type="radio" name="tractField" value="COLON_SCRE_99"> CRC screening (%)</label>
-      <label><input type="radio" name="tractField" value="fin100k_99"> Primary care providers per 100k</label>
+      <label><input type="radio" name="tractField" value="COLON_SCRE"> CRC screening (%)</label>
+      <label><input type="radio" name="tractField" value="fin100k"> Primary care providers per 100k</label>
       <label><input type="radio" name="tractField" value="overlap_type_99"> Access-screening overlap</label>
     </div>
   </div>
@@ -257,7 +257,7 @@
       let catchmentsLayer = null;
       let catchmentsData = [];
       let tractsLayer = null;
-      let currentField = 'COLON_SCRE_95';
+      let currentField = 'COLON_SCRE';
       
       // Function to show loading indicator
       function showLoading(show) {
@@ -355,10 +355,10 @@
                   let content = `<div class="popup-content"><strong>Tract ${props.id || ''}</strong><br>`;
                   
                   // Show all relevant properties
-                  if (props.COLON_SCRE_95 !== undefined) content += `95% CRC Screening: ${props.COLON_SCRE_95}%<br>`;
-                  if (props.COLON_SCRE_99 !== undefined) content += `99% CRC Screening: ${props.COLON_SCRE_99}%<br>`;
-                  if (props.fin100k_95 !== undefined) content += `95% Providers/100k: ${props.fin100k_95}<br>`;
-                  if (props.fin100k_99 !== undefined) content += `99% Providers/100k: ${props.fin100k_99}<br>`;
+                  if (props.COLON_SCRE !== undefined) content += `95% CRC Screening: ${props.COLON_SCRE}%<br>`;
+                  if (props.COLON_SCRE !== undefined) content += `99% CRC Screening: ${props.COLON_SCRE}%<br>`;
+                  if (props.fin100k !== undefined) content += `95% Providers/100k: ${props.fin100k}<br>`;
+                  if (props.fin100k !== undefined) content += `99% Providers/100k: ${props.fin100k}<br>`;
                   if (props.overlap_type !== undefined) content += `95% Overlap: ${props.overlap_type}<br>`;
                   if (props.overlap_type_99 !== undefined) content += `99% Overlap: ${props.overlap_type_99}<br>`;
                   
@@ -423,10 +423,10 @@
                   let content = `<div class="popup-content"><strong>Tract ${props.id || ''}</strong><br>`;
                   
                   // Show all relevant properties
-                  if (props.COLON_SCRE_95 !== undefined) content += `95% CRC Screening: ${props.COLON_SCRE_95}%<br>`;
-                  if (props.COLON_SCRE_99 !== undefined) content += `99% CRC Screening: ${props.COLON_SCRE_99}%<br>`;
-                  if (props.fin100k_95 !== undefined) content += `95% Providers/100k: ${props.fin100k_95}<br>`;
-                  if (props.fin100k_99 !== undefined) content += `99% Providers/100k: ${props.fin100k_99}<br>`;
+                  if (props.COLON_SCRE !== undefined) content += `95% CRC Screening: ${props.COLON_SCRE}%<br>`;
+                  if (props.COLON_SCRE !== undefined) content += `99% CRC Screening: ${props.COLON_SCRE}%<br>`;
+                  if (props.fin100k !== undefined) content += `95% Providers/100k: ${props.fin100k}<br>`;
+                  if (props.fin100k !== undefined) content += `99% Providers/100k: ${props.fin100k}<br>`;
                   if (props.overlap_type !== undefined) content += `95% Overlap: ${props.overlap_type}<br>`;
                   if (props.overlap_type_99 !== undefined) content += `99% Overlap: ${props.overlap_type_99}<br>`;
                   
