@@ -34,6 +34,7 @@
       max-width: 260px;
       box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);
       border: 1px solid #ddd;
+      transition: all 0.3s ease;
     }
     
     .control-panel h3 {
@@ -41,6 +42,7 @@
       color: #2c3e50;
       border-bottom: 1px solid #eee;
       padding-bottom: 8px;
+      font-size: 16px;
     }
 
     .legend {
@@ -56,6 +58,7 @@
       max-width: 300px;
       box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);
       border: 1px solid #ddd;
+      transition: all 0.3s ease;
     }
     
     .legend h3 {
@@ -63,6 +66,7 @@
       color: #2c3e50;
       border-bottom: 1px solid #eee;
       padding-bottom: 8px;
+      font-size: 16px;
     }
 
     .legend .color-box {
@@ -120,6 +124,7 @@
       right: 0;
       text-align: center;
       z-index: 1000;
+      transition: all 0.3s ease;
     }
     
     .title-bar h1 {
@@ -131,6 +136,7 @@
       color: #2c3e50;
       box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
       margin: 0;
+      transition: all 0.3s ease;
     }
     
     .status-bar {
@@ -143,6 +149,7 @@
       font-size: 12px;
       z-index: 1000;
       box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+      transition: all 0.3s ease;
     }
     
     .error-panel {
@@ -217,6 +224,7 @@
       display: flex;
       flex-direction: column;
       gap: 5px;
+      transition: all 0.3s ease;
     }
     
     .zoom-btn {
@@ -232,6 +240,7 @@
       align-items: center;
       justify-content: center;
       box-shadow: 0 1px 5px rgba(0, 0, 0, 0.1);
+      transition: all 0.3s ease;
     }
     
     .zoom-btn:hover {
@@ -276,20 +285,22 @@
       color: #2c3e50;
     }
     
-.note-panel {
-  position: absolute;
-  bottom: 17px;
-  left: 50%;
-  transform: translateX(-50%);
-  background: rgba(255, 255, 255, 0.9);
-  padding: 10px 15px;
-  border-radius: 4px;
-  font-size: 12px;
-  z-index: 1000;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-  text-align: center;
-  white-space: nowrap;
-}
+    .note-panel {
+      position: absolute;
+      bottom: 17px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(255, 255, 255, 0.9);
+      padding: 10px 15px;
+      border-radius: 4px;
+      font-size: 12px;
+      z-index: 1000;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+      text-align: center;
+      white-space: nowrap;
+      transition: all 0.3s ease;
+      max-width: 90%;
+    }
     
     .combined-popup {
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -348,6 +359,138 @@
     .catchment-list-item:last-child {
       border-bottom: none;
     }
+    
+    /* Mobile Responsive Styles */
+    @media (max-width: 768px) {
+      .control-panel {
+        max-width: 200px;
+        padding: 10px;
+        font-size: 12px;
+        left: 5px;
+        top: 5px;
+      }
+      
+      .control-panel h3 {
+        font-size: 14px;
+        padding-bottom: 5px;
+      }
+      
+      .legend {
+        max-width: 200px;
+        padding: 10px;
+        font-size: 12px;
+        right: 5px;
+        bottom: 60px;
+      }
+      
+      .legend h3 {
+        font-size: 14px;
+        padding-bottom: 5px;
+      }
+      
+      .title-bar h1 {
+        font-size: 1.1em;
+        padding: 8px 15px;
+      }
+      
+      .zoom-controls {
+        top: 70px;
+        right: 5px;
+      }
+      
+      .zoom-btn {
+        width: 35px;
+        height: 35px;
+        font-size: 16px;
+      }
+      
+      .note-panel {
+        font-size: 10px;
+        padding: 8px 12px;
+        white-space: normal;
+        bottom: 10px;
+      }
+      
+      .status-bar {
+        font-size: 10px;
+        padding: 5px 10px;
+        left: 5px;
+        bottom: 5px;
+      }
+      
+      .legend .color-box,
+      .legend .line-box {
+        width: 16px;
+        height: 16px;
+        margin-right: 6px;
+      }
+      
+      .legend .line-box {
+        height: 4px;
+      }
+    }
+    
+    @media (max-width: 480px) {
+      .control-panel {
+        max-width: 160px;
+        font-size: 11px;
+      }
+      
+      .legend {
+        max-width: 160px;
+        font-size: 11px;
+        bottom: 50px;
+      }
+      
+      .title-bar h1 {
+        font-size: 0.9em;
+        padding: 6px 12px;
+      }
+      
+      .zoom-controls {
+        top: 60px;
+      }
+      
+      .note-panel {
+        font-size: 9px;
+        padding: 6px 10px;
+      }
+      
+      .status-bar {
+        font-size: 9px;
+      }
+    }
+    
+    /* Toggle button for mobile controls */
+    .mobile-toggle {
+      display: none;
+      position: absolute;
+      bottom: 10px;
+      right: 10px;
+      z-index: 1000;
+      background: rgba(255, 255, 255, 0.9);
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      padding: 5px 10px;
+      font-size: 12px;
+      cursor: pointer;
+    }
+    
+    @media (max-width: 768px) {
+      .mobile-toggle {
+        display: block;
+      }
+      
+      .control-panel.collapsed {
+        transform: translateX(-100%);
+        opacity: 0;
+      }
+      
+      .legend.collapsed {
+        transform: translateX(100%);
+        opacity: 0;
+      }
+    }
   </style>
 </head>
 <body>
@@ -392,6 +535,8 @@
     Note: Overlapping clusters are adjusted for ADI, urban/rural, Hispanic/Latino %, NHB %, & uninsured %.<br>Clusters are overlap given the values of these variables and not just low access & low screening.
   </div>
 
+  <button class="mobile-toggle" id="toggleControls">Toggle Controls</button>
+
   <!-- Load scripts -->
   <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
   <script src="https://unpkg.com/topojson-client@3"></script>
@@ -402,6 +547,9 @@
       const loadingIndicator = document.getElementById('loadingIndicator');
       const zoomInBtn = document.getElementById('zoomIn');
       const zoomOutBtn = document.getElementById('zoomOut');
+      const toggleControlsBtn = document.getElementById('toggleControls');
+      const controlPanel = document.querySelector('.control-panel');
+      const legend = document.querySelector('.legend');
       
       // Initialize map
       const map = L.map('map').setView([33.5186, -86.8104], 7);
@@ -418,6 +566,12 @@
       
       zoomOutBtn.addEventListener('click', () => {
         map.zoomOut();
+      });
+      
+      // Toggle controls on mobile
+      toggleControlsBtn.addEventListener('click', () => {
+        controlPanel.classList.toggle('collapsed');
+        legend.classList.toggle('collapsed');
       });
       
       // Store catchments and tracts for overlap detection
@@ -763,6 +917,11 @@
           console.error('Error loading data:', error);
           statusEl.textContent = 'Data load error: ' + error.message;
         });
+        
+      // Handle window resize for responsive adjustments
+      window.addEventListener('resize', function() {
+        // This will trigger the CSS media queries automatically
+      });
     });
   </script>
 </body>
