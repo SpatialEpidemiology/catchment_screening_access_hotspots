@@ -110,7 +110,6 @@
       right: 0;
       text-align: center;
       z-index: 1000;
-      pointer-events: none;
     }
     
     .title-bar h1 {
@@ -176,28 +175,32 @@
     .catchment-popup-content {
       max-height: 200px;
       overflow-y: auto;
-      min-width: 200px;
     }
     
     .catchment-item {
-      padding: 8px 0;
+      padding: 5px 0;
       border-bottom: 1px solid #eee;
-      font-size: 14px;
     }
     
     .catchment-item:last-child {
       border-bottom: none;
     }
     
-    .catchment-name {
-      font-weight: 600;
-      color: #2c3e50;
-    }
-    
-    .catchment-details {
+    /* Debug panel */
+    .debug-panel {
+      position: absolute;
+      bottom: 50px;
+      left: 10px;
+      background: rgba(0, 0, 0, 0.7);
+      color: white;
+      padding: 10px;
+      border-radius: 4px;
       font-size: 12px;
-      color: #666;
-      margin-top: 2px;
+      z-index: 1000;
+      max-width: 300px;
+      max-height: 200px;
+      overflow-y: auto;
+      display: none;
     }
   </style>
 </head>
@@ -222,122 +225,142 @@
       <label><input type="radio" name="tractField" value="fin100k_99"> Primary care providers per 100k</label>
       <label><input type="radio" name="tractField" value="overlap_type_99"> Access-screening overlap</label>
     </div>
+    
+    <div style="margin-top: 15px; padding-top: 10px; border-top: 1px solid #eee;">
+      <label><input type="checkbox" id="debugToggle"> Show debug info</label>
+    </div>
   </div>
 
   <div class="legend">
     <h3>Legend</h3>
-    <div id="legend-content">
-      <div class="legend-item">
-        <div class="color-box" style="background: none; border: 2px dashed #000;"></div>
-        <span>Healthcare Catchments</span>
-      </div>
-    </div>
+    <div id="legend-content"></div>
   </div>
   
   <div class="status-bar">
     <span id="status">Initializing map...</span>
   </div>
+  
+  <div class="debug-panel" id="debugPanel"></div>
 
   <!-- Load scripts at the end to ensure DOM is ready -->
   <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
-  <!-- PMTiles support -->
-  <script src="https://unpkg.com/pmtiles@3.0.6/dist/pmtiles.js"></script>
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <script src="https://unpkg.com/leaflet.vectorgrid@1.3.0/dist/Leaflet.VectorGrid.bundled.js"></script>
+  
+  <!-- PMTiles library - Load from jsDelivr instead of unpkg -->
+  <script src="https://cdn.jsdelivr.net/npm/pmtiles@3.1.2/dist/index.js"></script>
   
   <script>
     document.addEventListener('DOMContentLoaded', function() {
       const statusEl = document.getElementById('status');
+      const debugPanel = document.getElementById('debugPanel');
+      const debugToggle = document.getElementById('debugToggle');
+      let debugLog = [];
+      
+      // Debug logging function
+      function debugLogMessage(message) {
+        debugLog.push(new Date().toLocaleTimeString() + ': ' + message);
+        if (debugLog.length > 10) debugLog.shift();
+        
+        if (debugPanel.style.display === 'block') {
+          debugPanel.innerHTML = debugLog.join('<br>');
+        }
+      }
+      
+      // Toggle debug panel
+      debugToggle.addEventListener('change', function() {
+        debugPanel.style.display = this.checked ? 'block' : 'none';
+        if (this.checked) {
+          debugPanel.innerHTML = debugLog.join('<br>');
+        }
+      });
       
       // Initialize map with zoom controls
       const map = L.map('map', {
-        preferCanvas: true // Use canvas renderer for better performance
+        zoomControl: false  // We'll add our custom positioned zoom control
       }).setView([33.5186, -86.8104], 7);
       
-      // Add PMTiles protocol
-      let protocol = new pmtiles.Protocol();
-      maplibregl.addProtocol("pmtiles", protocol.tile);
+      // Add zoom control to top-right
+      L.control.zoom({
+        position: 'topright'
+      }).addTo(map);
       
       // Add base tile layer
-      const baseLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-        attribution: '&copy; OpenStreetMap &copy; CartoDB',
-        crossOrigin: 'anonymous' // Enable CORS for base tiles
+      L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+        attribution: '&copy; OpenStreetMap &copy; CartoDB'
       }).addTo(map);
       
       // Store catchments for overlap detection
       let catchmentsLayer = null;
       let catchmentsData = [];
-      let pmtilesLayers = {};
       
-      // PMTiles layer setup function
-      function setupPMTilesLayer(url, layerName) {
+      // Function to validate and fix GeoJSON geometries
+      function validateGeometry(feature) {
         try {
-          const p = new pmtiles.PMTiles(url);
+          const geom = feature.geometry;
           
-          // Add the layer to Leaflet using a custom tile layer
-          const pmtilesLayer = new L.GridLayer({
-            attribution: 'PMTiles data',
-            maxZoom: 18,
-            tileSize: 512,
-            zoomOffset: -1
-          });
-          
-          pmtilesLayer.createTile = function(coords, done) {
-            const tile = document.createElement('canvas');
-            tile.width = 512;
-            tile.height = 512;
-            
-            const ctx = tile.getContext('2d');
-            
-            // Fetch and render PMTiles data
-            p.getZxy(coords.z, coords.x, coords.y).then(data => {
-              if (data) {
-                // Process the tile data (this would need to be adapted based on your PMTiles format)
-                // For now, we'll create a placeholder
-                ctx.fillStyle = 'rgba(255, 0, 0, 0.3)';
-                ctx.fillRect(0, 0, 512, 512);
-                ctx.strokeStyle = '#ff0000';
-                ctx.lineWidth = 2;
-                ctx.strokeRect(0, 0, 512, 512);
+          // Check if it's a polygon
+          if (geom.type === 'Polygon') {
+            // Ensure each ring has at least 4 positions (triangles need to be closed)
+            const coordinates = geom.coordinates.map(ring => {
+              // If ring has less than 4 positions, duplicate the first point to close it
+              if (ring.length < 4) {
+                debugLogMessage('Fixing polygon with ' + ring.length + ' points');
+                // Add the first point again to close the ring
+                return [...ring, ring[0]];
               }
-              done(null, tile);
-            }).catch(err => {
-              console.error('PMTiles error:', err);
-              done(err, null);
+              return ring;
             });
             
-            return tile;
-          };
+            return {...feature, geometry: {...geom, coordinates}};
+          }
           
-          pmtilesLayers[layerName] = pmtilesLayer;
-          return pmtilesLayer;
+          // For other geometry types, return as-is
+          return feature;
         } catch (error) {
-          console.error('Failed to setup PMTiles layer:', error);
-          statusEl.textContent = `PMTiles error: ${error.message}`;
+          debugLogMessage('Error validating geometry: ' + error.message);
           return null;
         }
       }
       
-      // Load catchments as GeoJSON with improved overlap detection
+      // Load catchments as GeoJSON
       function loadCatchments() {
         statusEl.textContent = 'Loading catchments...';
+        debugLogMessage('Loading catchments from assets/catchments.json');
         
-        return fetch('assets/catchments.json', {
-          method: 'GET',
-          headers: {
-            'Accept': 'application/json',
-            'Content-Type': 'application/json',
-          },
-          mode: 'cors' // Explicitly enable CORS
-        })
+        return fetch('assets/catchments.json')
           .then(response => {
-            if (!response.ok) throw new Error(`Failed to load catchments: ${response.status} ${response.statusText}`);
+            if (!response.ok) throw new Error('Failed to load catchments: ' + response.status);
             return response.json();
           })
           .then(geojson => {
+            statusEl.textContent = 'Processing catchments...';
+            debugLogMessage('Catchments loaded, processing geometries...');
+            
+            // Validate and fix geometries
+            const validFeatures = [];
+            const invalidFeatures = [];
+            
+            geojson.features.forEach(feature => {
+              const validated = validateGeometry(feature);
+              if (validated) {
+                validFeatures.push(validated);
+              } else {
+                invalidFeatures.push(feature);
+              }
+            });
+            
+            if (invalidFeatures.length > 0) {
+              debugLogMessage('Skipped ' + invalidFeatures.length + ' invalid features');
+            }
+            
+            catchmentsData = validFeatures;
+            
             statusEl.textContent = 'Rendering catchments...';
-            catchmentsData = geojson.features;
+            debugLogMessage('Catchments processed, rendering...');
             
             // Add catchments to map with black dashed borders and no fill
-            catchmentsLayer = L.geoJSON(geojson, {
+            catchmentsLayer = L.geoJSON({type: 'FeatureCollection', features: catchmentsData}, {
               style: { 
                 color: '#000000', // Black border
                 weight: 2, 
@@ -349,196 +372,289 @@
                 // Store reference to the original feature
                 layer.feature = feature;
                 
-                // Enhanced popup content
-                if (feature.properties) {
-                  const props = feature.properties;
-                  let popupContent = `<div class="catchment-popup-content">`;
-                  popupContent += `<div class="catchment-name">${props.name || 'Unnamed Catchment'}</div>`;
-                  
-                  // Add additional properties if available
-                  if (props.type) {
-                    popupContent += `<div class="catchment-details">Type: ${props.type}</div>`;
-                  }
-                  if (props.population) {
-                    popupContent += `<div class="catchment-details">Population: ${props.population.toLocaleString()}</div>`;
-                  }
-                  if (props.area) {
-                    popupContent += `<div class="catchment-details">Area: ${props.area} sq km</div>`;
-                  }
-                  
-                  popupContent += `</div>`;
-                  layer.bindPopup(popupContent);
+                // Add a traditional popup for each catchment
+                if (feature.properties && feature.properties.name) {
+                  layer.bindPopup(feature.properties.name);
                 }
               }
             }).addTo(map);
             
-            // Enhanced click handler for better overlap detection
-            map.on('click', function(e) {
+            // Add click handler for catchments
+            catchmentsLayer.on('click', function(e) {
               const clickedLatLng = e.latlng;
+              
+              // Find all catchments that contain the clicked point
               const overlappingCatchments = findOverlappingCatchments(clickedLatLng);
               
-              if (overlappingCatchments.length > 1) {
-                // Multiple catchments - show custom popup
+              if (overlappingCatchments.length > 0) {
                 showCatchmentsPopup(clickedLatLng, overlappingCatchments);
-              } else if (overlappingCatchments.length === 1) {
-                // Single catchment - use default popup behavior
-                const layer = findLayerForFeature(overlappingCatchments[0]);
-                if (layer) {
-                  layer.openPopup(clickedLatLng);
-                }
               }
             });
             
-            statusEl.textContent = `Catchments loaded successfully (${catchmentsData.length} features)`;
+            statusEl.textContent = 'Catchments loaded successfully';
+            debugLogMessage('Catchments rendered on map: ' + catchmentsData.length + ' features');
             return true;
           });
       }
       
-      // Find the Leaflet layer corresponding to a GeoJSON feature
-      function findLayerForFeature(feature) {
-        let foundLayer = null;
-        catchmentsLayer.eachLayer(layer => {
-          if (layer.feature === feature) {
-            foundLayer = layer;
-          }
-        });
-        return foundLayer;
-      }
-      
-      // Improved overlap detection using Leaflet's built-in methods
+      // Find all catchments that contain a given point
       function findOverlappingCatchments(latlng) {
         const overlapping = [];
-        
-        if (!catchmentsLayer) return overlapping;
         
         // Check each catchment layer
         catchmentsLayer.eachLayer(layer => {
           try {
-            // First check if point is within layer bounds for efficiency
+            // Use Leaflet's built-in contains method for accuracy
             if (layer.getBounds && layer.getBounds().contains(latlng)) {
-              // Then do precise point-in-polygon check
-              if (isPointInLayer(latlng, layer)) {
+              // For more precise checking with complex polygons
+              if (isPointInPolygon(latlng, layer)) {
                 overlapping.push(layer.feature);
               }
             }
           } catch (e) {
-            console.error('Error checking point in polygon:', e);
+            debugLogMessage('Error checking point in polygon: ' + e.message);
           }
         });
         
         return overlapping;
       }
       
-      // Improved point-in-polygon check using Leaflet's geometry
-      function isPointInLayer(latlng, layer) {
-        try {
-          // For polygons, use a more robust point-in-polygon algorithm
-          if (layer.getLatLngs) {
-            const latlngs = layer.getLatLngs();
-            
-            // Handle different polygon structures
-            let rings = [];
-            if (latlngs.length > 0) {
-              if (Array.isArray(latlngs[0])) {
-                // MultiPolygon or Polygon with holes
-                rings = latlngs;
-              } else {
-                // Simple polygon
-                rings = [latlngs];
-              }
-            }
-            
-            // Check if point is in any of the polygon rings
-            for (let ring of rings) {
-              if (Array.isArray(ring[0])) {
-                // This ring has sub-rings (polygon with holes)
-                for (let subRing of ring) {
-                  if (pointInPolygon(latlng, subRing)) {
-                    return true;
-                  }
-                }
-              } else {
-                // Simple ring
-                if (pointInPolygon(latlng, ring)) {
-                  return true;
-                }
-              }
-            }
-          }
-          return false;
-        } catch (e) {
-          console.error('Error in point-in-layer check:', e);
-          return false;
-        }
-      }
-      
-      // Ray casting algorithm for point-in-polygon
-      function pointInPolygon(point, polygon) {
-        const x = point.lng;
-        const y = point.lat;
-        let inside = false;
+      // Simple point-in-polygon check using ray casting algorithm
+      function isPointInPolygon(latlng, layer) {
+        const point = [latlng.lng, latlng.lat];
+        let latlngs = [];
         
-        for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
-          const xi = polygon[i].lng;
-          const yi = polygon[i].lat;
-          const xj = polygon[j].lng;
-          const yj = polygon[j].lat;
-          
-          if (((yi > y) !== (yj > y)) && (x < (xj - xi) * (y - yi) / (yj - yi) + xi)) {
-            inside = !inside;
+        // Get the coordinates from the layer
+        if (layer.getLatLngs) {
+          latlngs = layer.getLatLngs();
+          if (latlngs.length > 0 && Array.isArray(latlngs[0])) {
+            // This is a polygon with multiple rings
+            latlngs = latlngs[0]; // Use the first ring (exterior)
           }
+        }
+        
+        // Convert to simple array of points
+        const points = latlngs.map(latlng => [latlng.lng, latlng.lat]);
+        
+        // Ray casting algorithm
+        let inside = false;
+        for (let i = 0, j = points.length - 1; i < points.length; j = i++) {
+          const xi = points[i][0], yi = points[i][1];
+          const xj = points[j][0], yj = points[j][1];
+          
+          const intersect = ((yi > point[1]) !== (yj > point[1])) &&
+            (point[0] < (xj - xi) * (point[1] - yi) / (yj - yi) + xi);
+          if (intersect) inside = !inside;
         }
         
         return inside;
       }
       
-      // Enhanced popup for multiple overlapping catchments
+      // Show popup with all overlapping catchments
       function showCatchmentsPopup(latlng, catchments) {
         let content = `<div class="catchment-popup-content">`;
-        content += `<div style="font-weight: bold; margin-bottom: 10px; color: #2c3e50;">`;
-        content += `${catchments.length} Overlapping Catchments</div>`;
+        content += `<strong>${catchments.length} Catchment${catchments.length > 1 ? 's' : ''} at this location:</strong><br><br>`;
         
         catchments.forEach((catchment, index) => {
-          const props = catchment.properties || {};
-          const name = props.name || `Catchment ${index + 1}`;
-          
-          content += `<div class="catchment-item">`;
-          content += `<div class="catchment-name">${name}</div>`;
-          
-          if (props.type) {
-            content += `<div class="catchment-details">Type: ${props.type}</div>`;
-          }
-          if (props.population) {
-            content += `<div class="catchment-details">Pop: ${props.population.toLocaleString()}</div>`;
-          }
-          content += `</div>`;
+          const name = catchment.properties?.name || `Catchment ${index + 1}`;
+          content += `<div class="catchment-item">${name}</div>`;
         });
         
         content += `</div>`;
         
-        L.popup({
-          maxWidth: 300,
-          maxHeight: 200
-        })
+        L.popup()
           .setLatLng(latlng)
           .setContent(content)
           .openOn(map);
       }
       
-      // Load PMTiles files with CORS support
-      function loadPMTilesFiles() {
-        const pmtilesFiles = [
-          // Add your PMTiles file URLs here
-          // 'assets/your-file.pmtiles'
-        ];
+      // Initialize PMTiles functionality
+      function initPMTiles() {
+        // Check if PMTiles is available
+        if (typeof window.pmtiles === 'undefined') {
+          statusEl.textContent = 'PMTiles not available, using catchments only';
+          debugLogMessage('ERROR: PMTiles library not loaded');
+          showError('PMTiles Error', 'Hotspot data could not be loaded. Showing catchments only.');
+          return;
+        }
         
-        pmtilesFiles.forEach((url, index) => {
-          const layer = setupPMTilesLayer(url, `pmtiles-${index}`);
-          if (layer) {
-            // Optionally add to map
-            // layer.addTo(map);
+        try {
+          debugLogMessage('Initializing PMTiles protocol');
+          
+          // Create PMTiles instances - using direct file access
+          debugLogMessage('Loading PMTiles files directly...');
+          
+          // Add error handling for PMTiles loading
+          let pm95, pm99;
+          try {
+            pm95 = new window.pmtiles.PMTiles('assets/sc_acc_hot_spots_overlap_95.pmtiles');
+            pm99 = new window.pmtiles.PMTiles('assets/sc_acc_hot_spots_overlap_99.pmtiles');
+          } catch (error) {
+            debugLogMessage('Error creating PMTiles instances: ' + error.message);
+            showError('PMTiles Error', 'Could not load hotspot files. Showing catchments only.');
+            return;
           }
+          
+          debugLogMessage('PMTiles protocol registered successfully');
+          setupHotspotLayers(pm95, pm99);
+          statusEl.textContent = 'PMTiles layers initialized';
+        } catch (error) {
+          console.error('Error initializing PMTiles:', error);
+          debugLogMessage('ERROR initializing PMTiles: ' + error.message);
+          statusEl.textContent = 'PMTiles initialization error: ' + error.message;
+          showError('PMTiles Error', 'Hotspot data could not be loaded. Showing catchments only.');
+        }
+      }
+      
+      function setupHotspotLayers(pm95, pm99) {
+        let currentLayer = null;
+        
+        function getColor(field, value) {
+          // Handle numeric fields
+          if (typeof value === 'number') {
+            if (field === 'COLON_SCRE') {
+              if (value >= 80) return '#08306b';
+              if (value >= 60) return '#2171b5';
+              if (value >= 40) return '#4292c6';
+              if (value >= 20) return '#6baed6';
+              return '#9ecae1';
+            }
+            if (field === 'fin100k') {
+              if (value >= 120) return '#4b0055';
+              if (value >= 90) return '#7a3290';
+              if (value >= 60) return '#985ea7';
+              if (value >= 30) return '#b68bc1';
+              return '#d5b6da';
+            }
+          }
+          
+          // Handle categorical field
+          if (field === 'overlap_type') {
+            if (value === 'Low Screening-Low Access Cluster') return '#d73027';
+            if (value === 'High Screening-High Access Cluster') return '#1a9850';
+            if (value === 'Non-significant') return '#999999';
+          }
+          return '#cccccc';
+        }
+
+        // Create a VectorGrid layer from PMTiles source
+        function createLayer(pmtilesSource, fieldKey) {
+          const baseField = fieldKey.replace(/_\d+$/, '');
+          debugLogMessage('Creating layer for field: ' + fieldKey);
+          
+          return L.vectorGrid.protobuf(pmtilesSource.getURLTemplate(), {
+            vectorTileLayerStyles: {
+              // Use wildcard to match any layer name
+              '*': feature => {
+                const value = feature.properties[fieldKey];
+                return {
+                  fillColor: getColor(baseField, value),
+                  fillOpacity: 0.8,
+                  color: '#444',
+                  weight: 0.3,
+                  opacity: 0.7
+                };
+              }
+            },
+            maxZoom: 18,
+            minZoom: 4,
+            interactive: true,
+            getFeatureId: f => f.properties.id || null
+          }).on('click', function(e) {
+            const props = e.layer.properties;
+            let content = `<div class="popup-content"><strong>Tract ${props.id || ''}</strong><br>`;
+            
+            // Show all relevant properties
+            if (props.COLON_SCRE_95 !== undefined) content += `95% CRC Screening: ${props.COLON_SCRE_95}%<br>`;
+            if (props.COLON_SCRE_99 !== undefined) content += `99% CRC Screening: ${props.COLON_SCRE_99}%<br>`;
+            if (props.fin100k_95 !== undefined) content += `95% Providers/100k: ${props.fin100k_95}<br>`;
+            if (props.fin100k_99 !== undefined) content += `99% Providers/100k: ${props.fin100k_99}<br>`;
+            if (props.overlap_type_95 !== undefined) content += `95% Overlap: ${props.overlap_type_95}<br>`;
+            if (props.overlap_type_99 !== undefined) content += `99% Overlap: ${props.overlap_type_99}<br>`;
+            
+            content += '</div>';
+            L.popup()
+              .setLatLng(e.latlng)
+              .setContent(content)
+              .openOn(map);
+          });
+        }
+
+        function updateLegend(fieldKey) {
+          const baseField = fieldKey.replace(/_\d+$/, '');
+          const legend = document.getElementById('legend-content');
+          let html = '';
+          
+          const confLevel = fieldKey.includes('_99') ? '99%' : '95%';
+
+          if (baseField === 'COLON_SCRE') {
+            html += `
+              <div class="legend-item"><span class="color-box" style="background:#08306b;"></span>≥ 80% (${confLevel})</div>
+              <div class="legend-item"><span class="color-box" style="background:#2171b5;"></span>60-79%</div>
+              <div class="legend-item"><span class="color-box" style="background:#4292c6;"></span>40-59%</div>
+              <div class="legend-item"><span class="color-box" style="background:#6baed6;"></span>20-39%</div>
+              <div class="legend-item"><span class="color-box" style="background:#9ecae1;"></span>0-19%</div>
+            `;
+          } else if (baseField === 'fin100k') {
+            html += `
+              <div class="legend-item"><span class="color-box" style="background:#4b0055;"></span>≥ 120 (${confLevel})</div>
+              <div class="legend-item"><span class="color-box" style="background:#7a3290;"></span>90-119</div>
+              <div class="legend-item"><span class="color-box" style="background:#985ea7;"></span>60-89</div>
+              <div class="legend-item"><span class="color-box" style="background:#b68bc1;"></span>30-59</div>
+              <div class="legend-item"><span class="color-box" style="background:#d5b6da;"></span>0-29</div>
+            `;
+          } else if (baseField === 'overlap_type') {
+            html += `
+              <div class="legend-item"><span class="color-box" style="background:#d73027;"></span>Low Screening-Low Access</div>
+              <div class="legend-item"><span class="color-box" style="background:#1a9850;"></span>High Screening-High Access</div>
+              <div class="legend-item"><span class="color-box" style="background:#999999;"></span>Non-significant</div>
+            `;
+          }
+
+          legend.innerHTML = html;
+        }
+
+        function switchLayer(fieldKey) {
+          if (currentLayer) {
+            map.removeLayer(currentLayer);
+          }
+          
+          try {
+            debugLogMessage('Switching to layer: ' + fieldKey);
+            const pmtilesSource = fieldKey.includes('_95') ? pm95 : pm99;
+            currentLayer = createLayer(pmtilesSource, fieldKey);
+            currentLayer.addTo(map);
+            
+            updateLegend(fieldKey);
+            statusEl.textContent = `Displaying ${fieldKey.replace('_', ' ')} data`;
+            debugLogMessage('Layer displayed successfully: ' + fieldKey);
+          } catch (error) {
+            console.error('Error switching layer:', error);
+            debugLogMessage('ERROR switching layer: ' + error.message);
+            statusEl.textContent = 'Error displaying hotspot data';
+            showError('Layer Error', 'Could not display the selected hotspot layer.');
+          }
+        }
+
+        // Setup radio buttons event listeners
+        document.querySelectorAll('input[name="tractField"]').forEach(radio => {
+          radio.addEventListener('change', e => {
+            if (e.target.checked) {
+              switchLayer(e.target.value);
+            }
+          });
         });
+
+        // Initialize with default layer
+        try {
+          debugLogMessage('Initializing default layer: COLON_SCRE_95');
+          switchLayer('COLON_SCRE_95');
+          statusEl.textContent = 'Map ready with hotspot data';
+        } catch (error) {
+          console.error('Error initializing default layer:', error);
+          debugLogMessage('ERROR initializing default layer: ' + error.message);
+          statusEl.textContent = 'Error loading default hotspot layer';
+        }
       }
       
       function showError(title, message) {
@@ -559,29 +675,18 @@
         document.body.appendChild(errorPanel);
       }
       
-      // Radio button event handlers for tract fields
-      document.querySelectorAll('input[name="tractField"]').forEach(radio => {
-        radio.addEventListener('change', function() {
-          if (this.checked) {
-            statusEl.textContent = `Switched to: ${this.value}`;
-            // Here you would update the visualization based on the selected field
-            // This could involve loading different PMTiles or updating styling
-          }
-        });
-      });
-      
       // Start the initialization process
-      Promise.all([
-        loadCatchments(),
-        loadPMTilesFiles()
-      ]).then(() => {
-        statusEl.textContent = 'Map loaded successfully';
-      }).catch(error => {
-        console.error('Error loading map data:', error);
-        statusEl.textContent = `Load error: ${error.message}`;
-        showError('Data Loading Error', 
-          `Failed to load map data: ${error.message}. Please check that your data files are accessible and CORS is properly configured.`);
-      });
+      loadCatchments()
+        .then(() => {
+          // Wait a moment for PMTiles library to load if it's still loading
+          setTimeout(initPMTiles, 100);
+        })
+        .catch(error => {
+          console.error('Error loading catchments:', error);
+          debugLogMessage('ERROR loading catchments: ' + error.message);
+          statusEl.textContent = 'Catchments load error: ' + error.message;
+          showError('Data Error', 'Failed to load catchment data.');
+        });
     });
   </script>
 </body>
