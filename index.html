@@ -316,7 +316,7 @@
         
         // Determine which TopoJSON file to load based on current field
         const confidenceLevel = currentField.includes('_99') ? '99' : '95';
-        const topojsonFile = `assets/sc_acc_hot_spots_overlap_${confidenceLevel}.json`;
+        const topojsonFile = `assets/sc_acc_hot_spots_overlap_${confidenceLevel}.topojson`;
         
         return fetch(topojsonFile)
           .then(response => {
@@ -326,8 +326,19 @@
           .then(topojsonData => {
             statusEl.textContent = 'Processing TopoJSON data...';
             
-            // Convert TopoJSON to GeoJSON
-            const geojson = topojson.feature(topojsonData, topojsonData.objects[Object.keys(topojsonData.objects)[0]]);
+            // Check if TopoJSON data is valid and has objects
+            if (!topojsonData || !topojsonData.objects) {
+              throw new Error('Invalid TopoJSON format: missing objects property');
+            }
+            
+            // Get the first object key (assuming there's only one object)
+            const objectKeys = Object.keys(topojsonData.objects);
+            if (objectKeys.length === 0) {
+              throw new Error('TopoJSON file does not contain any objects');
+            }
+            
+            const firstObjectKey = objectKeys[0];
+            const geojson = topojson.feature(topojsonData, topojsonData.objects[firstObjectKey]);
             
             // Remove existing tracts layer if it exists
             if (tractsLayer) {
@@ -367,6 +378,74 @@
           })
           .catch(error => {
             console.error('Error loading TopoJSON:', error);
+            statusEl.textContent = 'Error loading census tract data: ' + error.message;
+            showLoading(false);
+            
+            // Try to load as GeoJSON if TopoJSON fails
+            if (error.message.includes('TopoJSON')) {
+              console.log('Trying to load as GeoJSON instead...');
+              return loadGeoJSONTracts();
+            }
+            
+            throw error;
+          });
+      }
+      
+      // Load GeoJSON census tracts as fallback
+      function loadGeoJSONTracts() {
+        showLoading(true);
+        statusEl.textContent = 'Loading census tract data (GeoJSON fallback)...';
+        
+        // Determine which GeoJSON file to load based on current field
+        const confidenceLevel = currentField.includes('_99') ? '99' : '95';
+        const geojsonFile = `assets/sc_acc_hot_spots_overlap_${confidenceLevel}.geojson`;
+        
+        return fetch(geojsonFile)
+          .then(response => {
+            if (!response.ok) throw new Error('Failed to load GeoJSON: ' + response.status);
+            return response.json();
+          })
+          .then(geojsonData => {
+            statusEl.textContent = 'Processing GeoJSON data...';
+            
+            // Remove existing tracts layer if it exists
+            if (tractsLayer) {
+              map.removeLayer(tractsLayer);
+            }
+            
+            // Add tracts to map with styling based on current field
+            tractsLayer = L.geoJSON(geojsonData, {
+              style: getStyleForField,
+              onEachFeature: function(feature, layer) {
+                // Add click handler for tracts
+                layer.on('click', function(e) {
+                  const props = e.target.feature.properties;
+                  let content = `<div class="popup-content"><strong>Tract ${props.id || ''}</strong><br>`;
+                  
+                  // Show all relevant properties
+                  if (props.COLON_SCRE_95 !== undefined) content += `95% CRC Screening: ${props.COLON_SCRE_95}%<br>`;
+                  if (props.COLON_SCRE_99 !== undefined) content += `99% CRC Screening: ${props.COLON_SCRE_99}%<br>`;
+                  if (props.fin100k_95 !== undefined) content += `95% Providers/100k: ${props.fin100k_95}<br>`;
+                  if (props.fin100k_99 !== undefined) content += `99% Providers/100k: ${props.fin100k_99}<br>`;
+                  if (props.overlap_type_95 !== undefined) content += `95% Overlap: ${props.overlap_type_95}<br>`;
+                  if (props.overlap_type_99 !== undefined) content += `99% Overlap: ${props.overlap_type_99}<br>`;
+                  
+                  content += '</div>';
+                  L.popup()
+                    .setLatLng(e.latlng)
+                    .setContent(content)
+                    .openOn(map);
+                });
+              }
+            }).addTo(map);
+            
+            statusEl.textContent = 'Census tract data loaded successfully (GeoJSON)';
+            updateLegend(currentField);
+            showLoading(false);
+            return true;
+          })
+          .catch(error => {
+            console.error('Error loading GeoJSON:', error);
             statusEl.textContent = 'Error loading census tract data: ' + error.message;
             showLoading(false);
             throw error;
