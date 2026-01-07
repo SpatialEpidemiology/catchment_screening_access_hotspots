@@ -1,11 +1,12 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Overlapping Clusters of Access to Care <br> & CRC Screening in Cancer Center Catchment Areas</title>
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css"/>
-  <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
+  https://unpkg.com/leaflet@1.7.1/dist/leaflet.css
+  <script src="https://cdn.jsdelivr.net/npm/@turf/turfs</script>
   <style>
     html, body, #map { 
       height: 100%; 
@@ -25,13 +26,13 @@
       left: 10px;
       background: rgba(255, 255, 255, 0.95);
       padding: 15px;
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
       font-size: 14px;
       border-radius: 8px;
       z-index: 1000;
       max-width: 260px;
       box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);
       border: 1px solid #ddd;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     }
     
     .control-panel h3 {
@@ -48,13 +49,13 @@
       right: 20px;
       background: rgba(255, 255, 255, 0.95);
       padding: 15px;
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
       font-size: 14px;
       border-radius: 8px;
       z-index: 1000;
       max-width: 300px;
       box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);
       border: 1px solid #ddd;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     }
     
     .legend h3 {
@@ -142,6 +143,7 @@
       font-size: 12px;
       z-index: 1000;
       box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     }
     
     .loading-indicator {
@@ -155,6 +157,7 @@
       z-index: 1000;
       text-align: center;
       box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     }
     
     .note-panel {
@@ -171,6 +174,7 @@
       text-align: center;
       white-space: nowrap;
       max-width: 90%;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     }
     
     .combined-popup {
@@ -363,9 +367,17 @@
 
   <div class="control-panel">
     <h3>Cluster Visualization</h3>
+
+    <!-- Provider Type -->
     <div class="radio-group">
-      <label><input type="radio" name="tractField" value="overlap_type"> 95% Credible Interval</label>
-      <label><input type="radio" name="tractField" value="overlap_type_99" checked> 99% Credible Interval</label>
+      <label><input type="radio" name="providerType" value="pcp" checked> Primary Care Providers</label>
+      <label><input type="radio" name="providerType" value="gi"> GI Providers</label>
+    </div>
+
+    <!-- Credible Interval -->
+    <div class="radio-group">
+      <label><input type="radio" name="tractCI" value="95"> 95% Credible Interval</label>
+      <label><input type="radio" name="tractCI" value="99" checked> 99% Credible Interval</label>
     </div>
   </div>
 
@@ -391,39 +403,61 @@
     Note: Overlapping clusters are adjusted for ADI, urban/rural, Hispanic/Latino %, NHB %, & uninsured %.
   </div>
 
-  <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
-  <script src="https://unpkg.com/topojson-client@3"></script>
+  <script src="https://unpkg.com/leaflet@1.7.1.js</script>
+  https://unpkg.com/topojson-client@3</script>
   
   <script>
     document.addEventListener('DOMContentLoaded', function() {
       const statusEl = document.getElementById('status');
       const loadingIndicator = document.getElementById('loadingIndicator');
-      
-      const map = L.map('map', {
-        zoomControl: false
-      }).setView([33.5186, -86.8104], 7);
+
+      const BASE_URL = 'https://raw.githubusercontent.com/SpatialEpidemiology/catchment_screening_access_hotspots/main/assets/';
+
+      // File mapping (TopoJSON preferred, GeoJSON fallback)
+      const DATA_SOURCES = {
+        pcp: {
+          topo: { '95': 'sc_acc_hot_spots_overlap_95_simpl_topo.json',
+                  '99': 'sc_acc_hot_spots_overlap_99_simpl_topo.json' },
+          geo:  { '95': 'sc_acc_hot_spots_overlap_95_simpl.json',
+                  '99': 'sc_acc_hot_spots_overlap_99_simpl.json' }
+        },
+        gi: {
+          topo: { '95': 'sc_acc_gi_hot_spots_overlap_95_topo_simpl.json',
+                  '99': 'sc_acc_gi_hot_spots_overlap_99_topo_simpl.json' },
+          geo:  { '95': 'sc_acc_gi_hot_spots_overlap_95_simpl.json',
+                  '99': 'sc_acc_gi_hot_spots_overlap_99_simpl.json' }
+        }
+      };
+
+      // Property keys per Provider x CI
+      const PROPERTY_KEYS = {
+        pcp: { '95': 'overlap_type', '99': 'overlap_type_99' },
+        gi:  { '95': 'overlap_type', '99': 'overlap_type' } // GI always uses overlap_type
+      };
+
+      let currentProvider = 'pcp';  // 'pcp' or 'gi'
+      let currentCI = '99';         // '95' or '99'
+      let currentPropKey = PROPERTY_KEYS[currentProvider][currentCI];
+
+      const map = L.map('map', { zoomControl: false }).setView([33.5186, -86.8104], 7);
       
       L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
         attribution: '&copy; OpenStreetMap &copy; CartoDB'
       }).addTo(map);
       
-      L.control.zoom({
-        position: 'topright'
-      }).addTo(map);
+      L.control.zoom({ position: 'topright' }).addTo(map);
       
       let catchmentsLayer = null;
       let tractsLayer = null;
-      // Changed default to 99% credible interval
-      let currentField = 'overlap_type_99';
-      
+
       function showLoading(show) {
         loadingIndicator.style.display = show ? 'block' : 'none';
       }
-      
+
       function loadCatchments() {
         statusEl.textContent = 'Loading catchments...';
         
-        return fetch('https://raw.githubusercontent.com/SpatialEpidemiology/catchment_screening_access_hotspots/main/assets/catchments.json')
+        return fetch(BASE_URL + 'catchments.json')
           .then(response => {
             if (!response.ok) throw new Error('Failed to load catchments: ' + response.status);
             return response.json();
@@ -442,27 +476,37 @@
             }).addTo(map);
             
             catchmentsLayer.bringToFront();
-            
             statusEl.textContent = 'Catchments loaded successfully';
             return true;
           });
       }
-      
-      function loadTopoJSONTracts() {
+
+      function dataUrlsForSelection() {
+        const src = DATA_SOURCES[currentProvider];
+        return {
+          topoUrl: BASE_URL + src.topo[currentCI],
+          geoUrl:  BASE_URL + src.geo[currentCI]
+        };
+      }
+
+      function updatePropKey() {
+        currentPropKey = PROPERTY_KEYS[currentProvider][currentCI];
+      }
+
+      // Try TopoJSON first, fall back to GeoJSON
+      function loadTracts() {
         showLoading(true);
-        statusEl.textContent = 'Loading census tract data...';
-        
-        const confidenceLevel = currentField.includes('_99') ? '99' : '95';
-        const topojsonFile = `https://raw.githubusercontent.com/SpatialEpidemiology/catchment_screening_access_hotspots/main/assets/sc_acc_hot_spots_overlap_${confidenceLevel}_simpl_topo.json`;
-        
-        return fetch(topojsonFile)
+        updatePropKey();
+        const { topoUrl, geoUrl } = dataUrlsForSelection();
+        statusEl.textContent = `Loading census tract data (${currentProvider.toUpperCase()}, ${currentCI}%)...`;
+
+        return fetch(topoUrl)
           .then(response => {
             if (!response.ok) throw new Error('Failed to load TopoJSON: ' + response.status);
             return response.json();
           })
           .then(topojsonData => {
             statusEl.textContent = 'Processing TopoJSON data...';
-            
             if (!topojsonData || !topojsonData.objects) {
               throw new Error('Invalid TopoJSON format');
             }
@@ -474,64 +518,73 @@
             
             const firstObjectKey = objectKeys[0];
             const geojson = topojson.feature(topojsonData, topojsonData.objects[firstObjectKey]);
-            
-            if (tractsLayer) {
-              map.removeLayer(tractsLayer);
-            }
-            
-            tractsLayer = L.geoJSON(geojson, {
-              style: getStyleForField
-            }).addTo(map);
-            
-            if (catchmentsLayer) {
-              catchmentsLayer.bringToFront();
-            }
-            
+
+            renderTractsGeoJSON(geojson);
             statusEl.textContent = 'Census tract data loaded successfully';
-            updateLegend(currentField);
+            updateLegend();
             showLoading(false);
             return true;
           })
           .catch(error => {
-            console.error('Error loading TopoJSON:', error);
+            console.warn('TopoJSON load failed, falling back to GeoJSON:', error);
+            return loadGeoJSONTracts(geoUrl);
+          });
+      }
+
+      function loadGeoJSONTracts(geoUrl) {
+        statusEl.textContent = 'Loading GeoJSON census tract data...';
+        return fetch(geoUrl)
+          .then(response => {
+            if (!response.ok) throw new Error('Failed to load GeoJSON: ' + response.status);
+            return response.json();
+          })
+          .then(geojson => {
+            renderTractsGeoJSON(geojson);
+            statusEl.textContent = 'Census tract data (GeoJSON) loaded successfully';
+            updateLegend();
+            showLoading(false);
+            return true;
+          })
+          .catch(error => {
+            console.error('Error loading census tract data:', error);
             statusEl.textContent = 'Error loading census tract data: ' + error.message;
             showLoading(false);
-            
-            if (error.message.includes('TopoJSON')) {
-              return loadGeoJSONTracts();
-            }
-            
             throw error;
           });
       }
-      
-      function getStyleForField(feature) {
-        const value = feature.properties[currentField];
-        
-        if (currentField.includes('overlap_type')) {
-          if (value === 'Low Screening-Low Access Cluster') return { fillColor: '#d73027', fillOpacity: 0.8, color: '#444', weight: 0.3 };
-          if (value === 'High Screening-High Access Cluster') return { fillColor: '#4575b4', fillOpacity: 0.8, color: '#444', weight: 0.3 };
-          if (value === 'Non-significant') return { fillColor: '#bebebe', fillOpacity: 0.8, color: '#444', weight: 0.3 };
+
+      function renderTractsGeoJSON(geojson) {
+        if (tractsLayer) {
+          map.removeLayer(tractsLayer);
         }
-        
+        tractsLayer = L.geoJSON(geojson, { style: getStyleForFeature }).addTo(map);
+
+        if (catchmentsLayer) catchmentsLayer.bringToFront();
+      }
+      
+      function getStyleForFeature(feature) {
+        const value = feature.properties[currentPropKey];
+
+        // Common categories for PCP and GI (values must match exactly)
+        if (value === 'Low Screening-Low Access Cluster') 
+          return { fillColor: '#d73027', fillOpacity: 0.8, color: '#444', weight: 0.3 };
+        if (value === 'High Screening-High Access Cluster') 
+          return { fillColor: '#4575b4', fillOpacity: 0.8, color: '#444', weight: 0.3 };
+        if (value === 'Non-significant') 
+          return { fillColor: '#bebebe', fillOpacity: 0.8, color: '#444', weight: 0.3 };
+
+        // Fallback if value missing or unexpected
         return { fillColor: '#cccccc', fillOpacity: 0.8, color: '#444', weight: 0.3 };
       }
       
-      function updateLegend(fieldKey) {
-        const baseField = fieldKey.replace(/_\d+$/, '');
+      function updateLegend() {
         const legend = document.getElementById('legend-content');
-        let html = '';
-
-        if (baseField === 'overlap_type') {
-          html += `
-            <div class="legend-item"><span class="color-box" style="background:#d73027;"></span>Low Screening-Low Access</div>
-            <div class="legend-item"><span class="color-box" style="background:#4575b4;"></span>High Screening-High Access</div>
-            <div class="legend-item"><span class="color-box" style="background:#999999;"></span>Non-significant</div>
-            <div class="legend-item"><span class="line-box"></span>Catchment Areas</div>
-          `;
-        }
-
-        legend.innerHTML = html;
+        legend.innerHTML = `
+          <div class="legend-item"><span class="color-box" style="background:#d73027;"></span>Low Screening-Low Access</div>
+          <div class="legend-item"><span class="color-box" style="background:#4575b4;"></span>High Screening-High Access</div>
+          <div class="legend-item"><span class="color-box" style="background:#bebebe;"></span>Non-significant</div>
+          <div class="legend-item"><span class="line-box"></span>Catchment Areas</div>
+        `;
       }
       
       function findFeaturesAtPoint(latlng) {
@@ -542,10 +595,7 @@
           tractsLayer.eachLayer(layer => {
             try {
               if (turf.booleanPointInPolygon(point, layer.toGeoJSON())) {
-                features.push({
-                  type: 'tract',
-                  properties: layer.feature.properties
-                });
+                features.push({ type: 'tract', properties: layer.feature.properties });
               }
             } catch (e) {
               console.error('Error checking point in tract polygon:', e);
@@ -557,10 +607,7 @@
           catchmentsLayer.eachLayer(layer => {
             try {
               if (turf.booleanPointInPolygon(point, layer.toGeoJSON())) {
-                features.push({
-                  type: 'catchment',
-                  properties: layer.feature.properties
-                });
+                features.push({ type: 'catchment', properties: layer.feature.properties });
               }
             } catch (e) {
               console.error('Error checking point in catchment polygon:', e);
@@ -571,26 +618,40 @@
         return features;
       }
       
-      document.querySelectorAll('input[name="tractField"]').forEach(radio => {
+      // CI radio (95/99)
+      document.querySelectorAll('input[name="tractCI"]').forEach(radio => {
         radio.addEventListener('change', e => {
           if (e.target.checked) {
-            currentField = e.target.value;
-            loadTopoJSONTracts().catch(error => {
-              console.error('Error switching layer:', error);
+            currentCI = e.target.value;    // '95' or '99'
+            loadTracts().catch(error => {
+              console.error('Error switching CI layer:', error);
+              statusEl.textContent = 'Error loading census tract data';
+            });
+          }
+        });
+      });
+
+      // Provider radio (pcp/gi)
+      document.querySelectorAll('input[name="providerType"]').forEach(radio => {
+        radio.addEventListener('change', e => {
+          if (e.target.checked) {
+            currentProvider = e.target.value; // 'pcp' or 'gi'
+            loadTracts().catch(error => {
+              console.error('Error switching provider layer:', error);
               statusEl.textContent = 'Error loading census tract data';
             });
           }
         });
       });
       
-      map.on('click', function(e) {
+      const mapClickHandler = function(e) {
         const clickedLatLng = e.latlng;
         const features = findFeaturesAtPoint(clickedLatLng);
-        
         if (features.length > 0) {
           showCombinedPopup(clickedLatLng, features);
         }
-      });
+      };
+      map.on('click', mapClickHandler);
       
       function showCombinedPopup(latlng, features) {
         let content = `<div class="combined-popup">`;
@@ -601,11 +662,13 @@
         if (tracts.length > 0) {
           content += `<h4>Tract Information</h4>`;
           
-          tracts.forEach((tract, index) => {
+          tracts.forEach((tract) => {
             const props = tract.properties;
             content += `<div class="section">`;
             content += `<div class="section-title">Tract ${props.id || 'Information'}</div>`;
-            content += `<div class="data-row"><span class="data-label">Cluster Type:</span> <span class="data-value">${props[currentField] || 'N/A'}</span></div>`;
+            content += `<div class="data-row"><span class="data-label">Provider:</span> <span class="data-value">${currentProvider.toUpperCase()}</span></div>`;
+            content += `<div class="data-row"><span class="data-label">Credible Interval:</span> <span class="data-value">${currentCI}%</span></div>`;
+            content += `<div class="data-row"><span class="data-label">Cluster Type:</span> <span class="data-value">${props[currentPropKey] || 'N/A'}</span></div>`;
             content += `</div>`;
           });
         }
@@ -631,10 +694,9 @@
           .openOn(map);
       }
       
+      // Initial load
       loadCatchments()
-        .then(() => {
-          return loadTopoJSONTracts();
-        })
+        .then(() => loadTracts())
         .catch(error => {
           console.error('Error loading data:', error);
           statusEl.textContent = 'Data load error: ' + error.message;
