@@ -3,87 +3,144 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Overlapping Clusters of Primary Care Access & CRC Screening</title>
+  <title>Overlapping Clusters of Primary Care Access <br> & CRC Screening in Cancer Center Catchment Areas</title>
 
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css"/>
   <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
 
   <style>
-    html, body, #map {
-      height: 100%;
-      margin: 0;
+    html, body, #map { 
+      height: 100%; 
+      margin: 0; 
+      padding: 0; 
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     }
-
-    #map { background: #f0f5f9; }
+    
+    #map { 
+      width: 100%; 
+      background: #f0f5f9;
+    }
 
     .control-panel {
       position: absolute;
-      top: 10px;
+      top: 10px; 
       left: 10px;
-      background: rgba(255,255,255,0.95);
-      padding: 12px;
+      background: rgba(255, 255, 255, 0.95);
+      padding: 15px;
+      font-size: 14px;
       border-radius: 8px;
       z-index: 1000;
-      max-width: 240px;
-      box-shadow: 0 3px 10px rgba(0,0,0,0.2);
+      max-width: 260px;
+      box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);
+      border: 1px solid #ddd;
     }
 
     .provider-panel {
       position: absolute;
       top: 10px;
       right: 10px;
-      background: rgba(255,255,255,0.95);
-      padding: 12px;
+      background: rgba(255, 255, 255, 0.95);
+      padding: 15px;
+      font-size: 14px;
       border-radius: 8px;
       z-index: 1000;
-      max-width: 220px;
-      box-shadow: 0 3px 10px rgba(0,0,0,0.2);
+      max-width: 260px;
+      box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);
+      border: 1px solid #ddd;
     }
 
-    h3 {
-      margin: 0 0 8px 0;
-      font-size: 15px;
+    .control-panel h3,
+    .provider-panel h3 {
+      margin-top: 0;
       color: #2c3e50;
       border-bottom: 1px solid #eee;
-      padding-bottom: 5px;
+      padding-bottom: 8px;
+      font-size: 16px;
+    }
+
+    .radio-group {
+      margin-bottom: 15px;
     }
 
     label {
-      display: block;
-      margin: 6px 0;
+      display: flex;
+      align-items: center;
+      margin: 5px 0;
       cursor: pointer;
+      padding: 5px;
+      border-radius: 4px;
+    }
+
+    label:hover {
+      background: #f1f8ff;
+    }
+
+    input[type="radio"] {
+      margin-right: 8px;
+    }
+
+    .title-bar {
+      position: absolute;
+      top: 10px;
+      left: 0;
+      right: 0;
+      text-align: center;
+      z-index: 1000;
+    }
+    
+    .title-bar h1 {
+      display: inline-block;
+      background: rgba(255, 255, 255, 0.9);
+      padding: 10px 25px;
+      border-radius: 30px;
+      font-size: 1.4em;
+      color: #2c3e50;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      margin: 0;
     }
 
     .legend {
       position: absolute;
-      bottom: 80px;
+      bottom: 70px;
       right: 20px;
-      background: rgba(255,255,255,0.95);
-      padding: 12px;
+      background: rgba(255, 255, 255, 0.95);
+      padding: 15px;
+      font-size: 14px;
       border-radius: 8px;
       z-index: 1000;
-      box-shadow: 0 3px 10px rgba(0,0,0,0.2);
+      max-width: 300px;
+      box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);
+      border: 1px solid #ddd;
+    }
+
+    .legend h3 {
+      margin-top: 0;
+      color: #2c3e50;
+      border-bottom: 1px solid #eee;
+      padding-bottom: 8px;
+      font-size: 16px;
     }
 
     .legend-item {
+      margin: 5px 0;
       display: flex;
       align-items: center;
-      margin: 5px 0;
     }
 
     .color-box {
-      width: 18px;
-      height: 18px;
+      width: 20px;
+      height: 20px;
       margin-right: 8px;
-      border: 1px solid #999;
+      border-radius: 3px;
+      border: 1px solid rgba(0,0,0,0.2);
     }
 
     .line-box {
-      width: 18px;
-      height: 6px;
+      width: 20px;
+      height: 7.5px;
       margin-right: 8px;
       background: #000;
+      border-radius: 2px;
     }
 
     .status-bar {
@@ -91,80 +148,92 @@
       bottom: 10px;
       left: 10px;
       background: rgba(255,255,255,0.9);
-      padding: 6px 10px;
+      padding: 8px 15px;
       border-radius: 4px;
       font-size: 12px;
       z-index: 1000;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+
+    .leaflet-control-zoom a {
+      background-color: rgba(255,255,255,0.9) !important;
+      border: 1px solid #ccc !important;
+      border-radius: 4px !important;
+      width: 30px !important;
+      height: 30px !important;
+      line-height: 30px !important;
+      font-size: 18px !important;
     }
   </style>
 </head>
 
 <body>
 
+<div class="title-bar">
+  <h1>Overlapping Clusters of Primary Care Access <br> & CRC Screening in Cancer Center Catchment Areas</h1>
+</div>
+
 <div id="map"></div>
 
-<!-- LEFT PANEL: CI -->
 <div class="control-panel">
-  <h3>Credible Interval</h3>
-  <label><input type="radio" name="tractField" value="overlap_type" checked>95% Credible Interval</label>
-  <label><input type="radio" name="tractField" value="overlap_type_99">99% Credible Interval</label>
+  <h3>Cluster Visualization</h3>
+  <div class="radio-group">
+    <label><input type="radio" name="tractField" value="overlap_type" checked>95% Credible Interval</label>
+    <label><input type="radio" name="tractField" value="overlap_type_99">99% Credible Interval</label>
+  </div>
 </div>
 
-<!-- RIGHT PANEL: PROVIDER -->
 <div class="provider-panel">
   <h3>Provider Type</h3>
-  <label><input type="radio" name="providerType" value="pcp" checked>Primary Care Providers</label>
-  <label><input type="radio" name="providerType" value="gi">GI Providers</label>
+  <div class="radio-group">
+    <label><input type="radio" name="providerType" value="pcp" checked>Primary Care Providers</label>
+    <label><input type="radio" name="providerType" value="gi">GI Providers</label>
+  </div>
 </div>
 
-<!-- LEGEND -->
 <div class="legend">
   <h3>Legend</h3>
-  <div class="legend-item"><span class="color-box" style="background:#d73027"></span>Low Screening – Low Access</div>
-  <div class="legend-item"><span class="color-box" style="background:#4575b4"></span>High Screening – High Access</div>
-  <div class="legend-item"><span class="color-box" style="background:#bebebe"></span>Non-significant</div>
+  <div class="legend-item"><span class="color-box" style="background:#d73027;"></span>Low Screening-Low Access</div>
+  <div class="legend-item"><span class="color-box" style="background:#4575b4;"></span>High Screening-High Access</div>
+  <div class="legend-item"><span class="color-box" style="background:#bebebe;"></span>Non-significant</div>
   <div class="legend-item"><span class="line-box"></span>Catchment Areas</div>
 </div>
 
-<div class="status-bar" id="status">Initializing map…</div>
+<div class="status-bar"><span id="status">Initializing map...</span></div>
 
 <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
 <script src="https://unpkg.com/topojson-client@3"></script>
 
 <script>
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', function() {
 
   const statusEl = document.getElementById('status');
 
   let currentField = 'overlap_type';
   let currentProvider = 'pcp';
+  let tractsLayer = null;
+  let catchmentsLayer = null;
 
   const map = L.map('map', { zoomControl: false })
-    .setView([33.5, -86.8], 7);
+    .setView([33.5186, -86.8104], 7);
 
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png')
-    .addTo(map);
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png').addTo(map);
 
-  // ✅ Zoom control bottom-left
   L.control.zoom({ position: 'bottomleft' }).addTo(map);
 
-  let tractsLayer, catchmentsLayer;
-
-  /* ---- Catchments ---- */
   fetch('https://raw.githubusercontent.com/SpatialEpidemiology/catchment_screening_access_hotspots/main/assets/catchments.json')
     .then(r => r.json())
     .then(data => {
       catchmentsLayer = L.geoJSON(data, {
         style: {
           color: '#000',
-          weight: 4,
+          weight: 4.5,
           dashArray: '5,8',
           fillOpacity: 0
         }
       }).addTo(map);
     });
 
-  /* ---- Tracts ---- */
   function loadTracts() {
     const ci = currentField.includes('_99') ? '99' : '95';
 
@@ -172,15 +241,12 @@ document.addEventListener('DOMContentLoaded', () => {
       ? `https://raw.githubusercontent.com/SpatialEpidemiology/catchment_screening_access_hotspots/main/assets/sc_acc_hot_spots_overlap_${ci}_simpl_topo.json`
       : `https://raw.githubusercontent.com/SpatialEpidemiology/catchment_screening_access_hotspots/main/assets/sc_acc_gi_hot_spots_overlap_${ci}_topo_simpl.json`;
 
-    statusEl.textContent = `Loading ${currentProvider.toUpperCase()} (${ci}%)…`;
-
     fetch(file)
       .then(r => r.json())
       .then(topo => {
         if (tractsLayer) map.removeLayer(tractsLayer);
 
-        const obj = topo.objects[Object.keys(topo.objects)[0]];
-        const geo = topojson.feature(topo, obj);
+        const geo = topojson.feature(topo, topo.objects[Object.keys(topo.objects)[0]]);
 
         tractsLayer = L.geoJSON(geo, {
           style: feature => {
@@ -201,24 +267,22 @@ document.addEventListener('DOMContentLoaded', () => {
         }).addTo(map);
 
         catchmentsLayer?.bringToFront();
-        statusEl.textContent = 'Map ready';
       });
   }
 
-  /* ---- Events ---- */
-  document.querySelectorAll('input[name="tractField"]').forEach(r =>
-    r.addEventListener('change', e => {
+  document.querySelectorAll('input[name="tractField"]').forEach(radio => {
+    radio.addEventListener('change', e => {
       currentField = e.target.value;
       loadTracts();
-    })
-  );
+    });
+  });
 
-  document.querySelectorAll('input[name="providerType"]').forEach(r =>
-    r.addEventListener('change', e => {
+  document.querySelectorAll('input[name="providerType"]').forEach(radio => {
+    radio.addEventListener('change', e => {
       currentProvider = e.target.value;
       loadTracts();
-    })
-  );
+    });
+  });
 
   loadTracts();
 });
