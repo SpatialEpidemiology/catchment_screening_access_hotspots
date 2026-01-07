@@ -4,10 +4,8 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Overlapping Clusters of Primary Care Access <br> & CRC Screening in Cancer Center Catchment Areas</title>
-
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css"/>
   <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
-
   <style>
     html, body, #map { 
       height: 100%; 
@@ -27,6 +25,7 @@
       left: 10px;
       background: rgba(255, 255, 255, 0.95);
       padding: 15px;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
       font-size: 14px;
       border-radius: 8px;
       z-index: 1000;
@@ -34,23 +33,8 @@
       box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);
       border: 1px solid #ddd;
     }
-
-    .provider-panel {
-      position: absolute;
-      top: 10px;
-      right: 10px;
-      background: rgba(255, 255, 255, 0.95);
-      padding: 15px;
-      font-size: 14px;
-      border-radius: 8px;
-      z-index: 1000;
-      max-width: 260px;
-      box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);
-      border: 1px solid #ddd;
-    }
-
-    .control-panel h3,
-    .provider-panel h3 {
+    
+    .control-panel h3 {
       margin-top: 0;
       color: #2c3e50;
       border-bottom: 1px solid #eee;
@@ -58,10 +42,59 @@
       font-size: 16px;
     }
 
+    .legend {
+      position: absolute;
+      bottom: 70px;
+      right: 20px;
+      background: rgba(255, 255, 255, 0.95);
+      padding: 15px;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      font-size: 14px;
+      border-radius: 8px;
+      z-index: 1000;
+      max-width: 300px;
+      box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);
+      border: 1px solid #ddd;
+    }
+    
+    .legend h3 {
+      margin-top: 0;
+      color: #2c3e50;
+      border-bottom: 1px solid #eee;
+      padding-bottom: 8px;
+      font-size: 16px;
+    }
+
+    .legend .color-box {
+      display: inline-block;
+      width: 20px; 
+      height: 20px;
+      margin-right: 8px;
+      vertical-align: middle;
+      border-radius: 3px;
+      border: 1px solid rgba(0, 0, 0, 0.2);
+    }
+    
+    .legend .line-box {
+      display: inline-block;
+      width: 20px;
+      height: 7.5px;
+      margin-right: 8px;
+      vertical-align: middle;
+      background: #000000;
+      border-radius: 2px;
+    }
+    
+    .legend-item {
+      margin: 5px 0;
+      display: flex;
+      align-items: center;
+    }
+    
     .radio-group {
       margin-bottom: 15px;
     }
-
+    
     label {
       display: flex;
       align-items: center;
@@ -70,15 +103,15 @@
       padding: 5px;
       border-radius: 4px;
     }
-
+    
     label:hover {
       background: #f1f8ff;
     }
-
+    
     input[type="radio"] {
       margin-right: 8px;
     }
-
+    
     .title-bar {
       position: absolute;
       top: 10px;
@@ -98,195 +131,514 @@
       box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
       margin: 0;
     }
-
-    .legend {
-      position: absolute;
-      bottom: 70px;
-      right: 20px;
-      background: rgba(255, 255, 255, 0.95);
-      padding: 15px;
-      font-size: 14px;
-      border-radius: 8px;
-      z-index: 1000;
-      max-width: 300px;
-      box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);
-      border: 1px solid #ddd;
-    }
-
-    .legend h3 {
-      margin-top: 0;
-      color: #2c3e50;
-      border-bottom: 1px solid #eee;
-      padding-bottom: 8px;
-      font-size: 16px;
-    }
-
-    .legend-item {
-      margin: 5px 0;
-      display: flex;
-      align-items: center;
-    }
-
-    .color-box {
-      width: 20px;
-      height: 20px;
-      margin-right: 8px;
-      border-radius: 3px;
-      border: 1px solid rgba(0,0,0,0.2);
-    }
-
-    .line-box {
-      width: 20px;
-      height: 7.5px;
-      margin-right: 8px;
-      background: #000;
-      border-radius: 2px;
-    }
-
+    
     .status-bar {
       position: absolute;
       bottom: 10px;
       left: 10px;
-      background: rgba(255,255,255,0.9);
+      background: rgba(255, 255, 255, 0.9);
       padding: 8px 15px;
       border-radius: 4px;
       font-size: 12px;
       z-index: 1000;
-      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
     }
-
+    
+    .loading-indicator {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: rgba(255, 255, 255, 0.9);
+      padding: 20px;
+      border-radius: 8px;
+      z-index: 1000;
+      text-align: center;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+    }
+    
+    .note-panel {
+      position: absolute;
+      bottom: 17px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(255, 255, 255, 0.9);
+      padding: 10px 15px;
+      border-radius: 4px;
+      font-size: 12px;
+      z-index: 1000;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+      text-align: center;
+      white-space: nowrap;
+      max-width: 90%;
+    }
+    
+    .combined-popup {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      max-width: 320px;
+    }
+    
+    .combined-popup h4 {
+      margin: 0 0 10px 0;
+      color: #2c3e50;
+      border-bottom: 1px solid #eee;
+      padding-bottom: 5px;
+    }
+    
+    .combined-popup .section {
+      margin-bottom: 15px;
+    }
+    
+    .combined-popup .section-title {
+      font-weight: bold;
+      color: #2c3e50;
+      margin-bottom: 8px;
+      padding-bottom: 3px;
+      border-bottom: 1px solid #f0f0f0;
+    }
+    
+    .combined-popup .data-row {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 4px;
+    }
+    
+    .combined-popup .data-label {
+      font-weight: 500;
+      color: #555;
+    }
+    
+    .combined-popup .data-value {
+      font-weight: 600;
+      color: #2c3e50;
+    }
+    
+    .catchment-list {
+      margin-top: 5px;
+      max-height: 120px;
+      overflow-y: auto;
+      padding: 5px;
+      background: #f9f9f9;
+      border-radius: 4px;
+    }
+    
+    .catchment-list-item {
+      padding: 5px;
+      border-bottom: 1px solid #eee;
+    }
+    
+    .catchment-list-item:last-child {
+      border-bottom: none;
+    }
+    
+    .leaflet-control-zoom {
+      margin-top: 80px !important;
+      margin-right: 10px !important;
+      border: none !important;
+    }
+    
     .leaflet-control-zoom a {
-      background-color: rgba(255,255,255,0.9) !important;
+      background-color: rgba(255, 255, 255, 0.9) !important;
       border: 1px solid #ccc !important;
       border-radius: 4px !important;
+      color: #333 !important;
       width: 30px !important;
       height: 30px !important;
       line-height: 30px !important;
       font-size: 18px !important;
+      margin-bottom: 5px !important;
+      box-shadow: 0 1px 5px rgba(0, 0, 0, 0.1) !important;
+    }
+    
+    .leaflet-control-zoom a:hover {
+      background-color: #f8f9fa !important;
+    }
+    
+    @media (max-width: 768px) {
+      .control-panel {
+        max-width: 200px;
+        padding: 10px;
+        font-size: 12px;
+        left: 5px;
+        top: 5px;
+      }
+      
+      .control-panel h3 {
+        font-size: 14px;
+      }
+      
+      .legend {
+        max-width: 200px;
+        padding: 10px;
+        font-size: 12px;
+        right: 5px;
+        bottom: 60px;
+      }
+      
+      .legend h3 {
+        font-size: 14px;
+      }
+      
+      .title-bar h1 {
+        font-size: 1.1em;
+        padding: 8px 15px;
+      }
+      
+      .note-panel {
+        font-size: 10px;
+        padding: 8px 12px;
+        white-space: normal;
+        bottom: 10px;
+      }
+      
+      .status-bar {
+        font-size: 10px;
+        padding: 5px 10px;
+        left: 5px;
+        bottom: 5px;
+      }
+      
+      .legend .color-box,
+      .legend .line-box {
+        width: 16px;
+        height: 16px;
+        margin-right: 6px;
+      }
+      
+      .legend .line-box {
+        height: 6px;
+      }
+      
+      .leaflet-control-zoom {
+        margin-top: 70px !important;
+        margin-right: 5px !important;
+      }
+      
+      .leaflet-control-zoom a {
+        width: 28px !important;
+        height: 28px !important;
+        line-height: 28px !important;
+        font-size: 16px !important;
+      }
+    }
+    
+    @media (max-width: 480px) {
+      .control-panel {
+        max-width: 160px;
+        font-size: 11px;
+      }
+      
+      .legend {
+        max-width: 160px;
+        font-size: 11px;
+        bottom: 50px;
+      }
+      
+      .title-bar h1 {
+        font-size: 0.9em;
+        padding: 6px 12px;
+      }
+      
+      .note-panel {
+        font-size: 9px;
+        padding: 6px 10px;
+      }
+      
+      .status-bar {
+        font-size: 9px;
+      }
+      
+      .leaflet-control-zoom {
+        margin-top: 60px !important;
+      }
     }
   </style>
 </head>
-
 <body>
-
-<div class="title-bar">
-  <h1>Overlapping Clusters of Primary Care Access <br> & CRC Screening in Cancer Center Catchment Areas</h1>
-</div>
-
-<div id="map"></div>
-
-<div class="control-panel">
-  <h3>Cluster Visualization</h3>
-  <div class="radio-group">
-    <label><input type="radio" name="tractField" value="overlap_type" checked>95% Credible Interval</label>
-    <label><input type="radio" name="tractField" value="overlap_type_99">99% Credible Interval</label>
+  <div class="title-bar">
+    <h1>Overlapping Clusters of Primary Care Access <br> & CRC Screening in Cancer Center Catchment Areas</h1>
   </div>
-</div>
+  
+  <div id="map"></div>
 
-<div class="provider-panel">
-  <h3>Provider Type</h3>
-  <div class="radio-group">
-    <label><input type="radio" name="providerType" value="pcp" checked>Primary Care Providers</label>
-    <label><input type="radio" name="providerType" value="gi">GI Providers</label>
+  <div class="control-panel">
+    <h3>Cluster Visualization</h3>
+    <div class="radio-group">
+      <label><input type="radio" name="tractField" value="overlap_type" checked> 95% Credible Interval</label>
+      <label><input type="radio" name="tractField" value="overlap_type_99"> 99% Credible Interval</label>
+    </div>
   </div>
-</div>
 
-<div class="legend">
-  <h3>Legend</h3>
-  <div class="legend-item"><span class="color-box" style="background:#d73027;"></span>Low Screening-Low Access</div>
-  <div class="legend-item"><span class="color-box" style="background:#4575b4;"></span>High Screening-High Access</div>
-  <div class="legend-item"><span class="color-box" style="background:#bebebe;"></span>Non-significant</div>
-  <div class="legend-item"><span class="line-box"></span>Catchment Areas</div>
-</div>
+  <div class="legend">
+    <h3>Legend</h3>
+    <div id="legend-content">
+      <div class="legend-item"><span class="color-box" style="background:#d73027;"></span>Low Screening-Low Access</div>
+      <div class="legend-item"><span class="color-box" style="background:#4575b4;"></span>High Screening-High Access</div>
+      <div class="legend-item"><span class="color-box" style="background:#bebebe;"></span>Non-significant</div>
+      <div class="legend-item"><span class="line-box"></span>Catchment Areas</div>
+    </div>
+  </div>
+  
+  <div class="status-bar">
+    <span id="status">Initializing map...</span>
+  </div>
 
-<div class="status-bar"><span id="status">Initializing map...</span></div>
+  <div class="loading-indicator" id="loadingIndicator" style="display: none;">
+    <p>Loading data...</p>
+  </div>
 
-<script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
-<script src="https://unpkg.com/topojson-client@3"></script>
+  <div class="note-panel">
+    Note: Overlapping clusters are adjusted for ADI, urban/rural, Hispanic/Latino %, NHB %, & uninsured %.
+  </div>
 
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-
-  const statusEl = document.getElementById('status');
-
-  let currentField = 'overlap_type';
-  let currentProvider = 'pcp';
-  let tractsLayer = null;
-  let catchmentsLayer = null;
-
-  const map = L.map('map', { zoomControl: false })
-    .setView([33.5186, -86.8104], 7);
-
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png').addTo(map);
-
-  L.control.zoom({ position: 'bottomleft' }).addTo(map);
-
-  fetch('https://raw.githubusercontent.com/SpatialEpidemiology/catchment_screening_access_hotspots/main/assets/catchments.json')
-    .then(r => r.json())
-    .then(data => {
-      catchmentsLayer = L.geoJSON(data, {
-        style: {
-          color: '#000',
-          weight: 4.5,
-          dashArray: '5,8',
-          fillOpacity: 0
-        }
+  <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/topojson-client@3"></script>
+  
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      const statusEl = document.getElementById('status');
+      const loadingIndicator = document.getElementById('loadingIndicator');
+      
+      const map = L.map('map', {
+        zoomControl: false
+      }).setView([33.5186, -86.8104], 7);
+      
+      L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+        attribution: '&copy; OpenStreetMap &copy; CartoDB'
       }).addTo(map);
-    });
+      
+      L.control.zoom({
+        position: 'topright'
+      }).addTo(map);
+      
+      let catchmentsLayer = null;
+      let tractsLayer = null;
+      let currentField = 'overlap_type';
+      
+      function showLoading(show) {
+        loadingIndicator.style.display = show ? 'block' : 'none';
+      }
+      
+      function loadCatchments() {
+        statusEl.textContent = 'Loading catchments...';
+        
+        return fetch('https://raw.githubusercontent.com/SpatialEpidemiology/catchment_screening_access_hotspots/main/assets/catchments.json')
+          .then(response => {
+            if (!response.ok) throw new Error('Failed to load catchments: ' + response.status);
+            return response.json();
+          })
+          .then(geojson => {
+            statusEl.textContent = 'Rendering catchments...';
+            
+            catchmentsLayer = L.geoJSON(geojson, {
+              style: { 
+                color: '#000000',
+                weight: 4.5,
+                fillOpacity: 0,
+                dashArray: '5, 8',
+                opacity: 0.9
+              }
+            }).addTo(map);
+            
+            catchmentsLayer.bringToFront();
+            
+            statusEl.textContent = 'Catchments loaded successfully';
+            return true;
+          });
+      }
+      
+      function loadTopoJSONTracts() {
+        showLoading(true);
+        statusEl.textContent = 'Loading census tract data...';
+        
+        const confidenceLevel = currentField.includes('_99') ? '99' : '95';
+        const topojsonFile = `https://raw.githubusercontent.com/SpatialEpidemiology/catchment_screening_access_hotspots/main/assets/sc_acc_hot_spots_overlap_${confidenceLevel}_simpl_topo.json`;
+        
+        return fetch(topojsonFile)
+          .then(response => {
+            if (!response.ok) throw new Error('Failed to load TopoJSON: ' + response.status);
+            return response.json();
+          })
+          .then(topojsonData => {
+            statusEl.textContent = 'Processing TopoJSON data...';
+            
+            if (!topojsonData || !topojsonData.objects) {
+              throw new Error('Invalid TopoJSON format');
+            }
+            
+            const objectKeys = Object.keys(topojsonData.objects);
+            if (objectKeys.length === 0) {
+              throw new Error('TopoJSON file does not contain any objects');
+            }
+            
+            const firstObjectKey = objectKeys[0];
+            const geojson = topojson.feature(topojsonData, topojsonData.objects[firstObjectKey]);
+            
+            if (tractsLayer) {
+              map.removeLayer(tractsLayer);
+            }
+            
+            tractsLayer = L.geoJSON(geojson, {
+              style: getStyleForField
+            }).addTo(map);
+            
+            if (catchmentsLayer) {
+              catchmentsLayer.bringToFront();
+            }
+            
+            statusEl.textContent = 'Census tract data loaded successfully';
+            updateLegend(currentField);
+            showLoading(false);
+            return true;
+          })
+          .catch(error => {
+            console.error('Error loading TopoJSON:', error);
+            statusEl.textContent = 'Error loading census tract data: ' + error.message;
+            showLoading(false);
+            
+            if (error.message.includes('TopoJSON')) {
+              return loadGeoJSONTracts();
+            }
+            
+            throw error;
+          });
+      }
+      
+      function getStyleForField(feature) {
+        const value = feature.properties[currentField];
+        
+        if (currentField.includes('overlap_type')) {
+          if (value === 'Low Screening-Low Access Cluster') return { fillColor: '#d73027', fillOpacity: 0.8, color: '#444', weight: 0.3 };
+          if (value === 'High Screening-High Access Cluster') return { fillColor: '#4575b4', fillOpacity: 0.8, color: '#444', weight: 0.3 };
+          if (value === 'Non-significant') return { fillColor: '#bebebe', fillOpacity: 0.8, color: '#444', weight: 0.3 };
+        }
+        
+        return { fillColor: '#cccccc', fillOpacity: 0.8, color: '#444', weight: 0.3 };
+      }
+      
+      function updateLegend(fieldKey) {
+        const baseField = fieldKey.replace(/_\d+$/, '');
+        const legend = document.getElementById('legend-content');
+        let html = '';
 
-  function loadTracts() {
-    const ci = currentField.includes('_99') ? '99' : '95';
+        if (baseField === 'overlap_type') {
+          html += `
+            <div class="legend-item"><span class="color-box" style="background:#d73027;"></span>Low Screening-Low Access</div>
+            <div class="legend-item"><span class="color-box" style="background:#4575b4;"></span>High Screening-High Access</div>
+            <div class="legend-item"><span class="color-box" style="background:#999999;"></span>Non-significant</div>
+            <div class="legend-item"><span class="line-box"></span>Catchment Areas</div>
+          `;
+        }
 
-    const file = currentProvider === 'pcp'
-      ? `https://raw.githubusercontent.com/SpatialEpidemiology/catchment_screening_access_hotspots/main/assets/sc_acc_hot_spots_overlap_${ci}_simpl_topo.json`
-      : `https://raw.githubusercontent.com/SpatialEpidemiology/catchment_screening_access_hotspots/main/assets/sc_acc_gi_hot_spots_overlap_${ci}_topo_simpl.json`;
-
-    fetch(file)
-      .then(r => r.json())
-      .then(topo => {
-        if (tractsLayer) map.removeLayer(tractsLayer);
-
-        const geo = topojson.feature(topo, topo.objects[Object.keys(topo.objects)[0]]);
-
-        tractsLayer = L.geoJSON(geo, {
-          style: feature => {
-            const field = currentProvider === 'gi' ? 'overlap_type' : currentField;
-            const v = feature.properties[field];
-
-            let fill = '#bebebe';
-            if (v === 'Low Screening-Low Access Cluster') fill = '#d73027';
-            if (v === 'High Screening-High Access Cluster') fill = '#4575b4';
-
-            return {
-              fillColor: fill,
-              fillOpacity: 0.8,
-              weight: 0,
-              color: 'transparent'
-            };
+        legend.innerHTML = html;
+      }
+      
+      function findFeaturesAtPoint(latlng) {
+        const point = turf.point([latlng.lng, latlng.lat]);
+        const features = [];
+        
+        if (tractsLayer) {
+          tractsLayer.eachLayer(layer => {
+            try {
+              if (turf.booleanPointInPolygon(point, layer.toGeoJSON())) {
+                features.push({
+                  type: 'tract',
+                  properties: layer.feature.properties
+                });
+              }
+            } catch (e) {
+              console.error('Error checking point in tract polygon:', e);
+            }
+          });
+        }
+        
+        if (catchmentsLayer) {
+          catchmentsLayer.eachLayer(layer => {
+            try {
+              if (turf.booleanPointInPolygon(point, layer.toGeoJSON())) {
+                features.push({
+                  type: 'catchment',
+                  properties: layer.feature.properties
+                });
+              }
+            } catch (e) {
+              console.error('Error checking point in catchment polygon:', e);
+            }
+          });
+        }
+        
+        return features;
+      }
+      
+      document.querySelectorAll('input[name="tractField"]').forEach(radio => {
+        radio.addEventListener('change', e => {
+          if (e.target.checked) {
+            currentField = e.target.value;
+            loadTopoJSONTracts().catch(error => {
+              console.error('Error switching layer:', error);
+              statusEl.textContent = 'Error loading census tract data';
+            });
           }
-        }).addTo(map);
-
-        catchmentsLayer?.bringToFront();
+        });
       });
-  }
-
-  document.querySelectorAll('input[name="tractField"]').forEach(radio => {
-    radio.addEventListener('change', e => {
-      currentField = e.target.value;
-      loadTracts();
+      
+      map.on('click', function(e) {
+        const clickedLatLng = e.latlng;
+        const features = findFeaturesAtPoint(clickedLatLng);
+        
+        if (features.length > 0) {
+          showCombinedPopup(clickedLatLng, features);
+        }
+      });
+      
+      function showCombinedPopup(latlng, features) {
+        let content = `<div class="combined-popup">`;
+        
+        const tracts = features.filter(f => f.type === 'tract');
+        const catchments = features.filter(f => f.type === 'catchment');
+        
+        if (tracts.length > 0) {
+          content += `<h4>Tract Information</h4>`;
+          
+          tracts.forEach((tract, index) => {
+            const props = tract.properties;
+            content += `<div class="section">`;
+            content += `<div class="section-title">Tract ${props.id || 'Information'}</div>`;
+            content += `<div class="data-row"><span class="data-label">Cluster Type:</span> <span class="data-value">${props[currentField] || 'N/A'}</span></div>`;
+            content += `</div>`;
+          });
+        }
+        
+        if (catchments.length > 0) {
+          content += `<div class="section">`;
+          content += `<div class="section-title">Catchment Areas (${catchments.length})</div>`;
+          content += `<div class="catchment-list">`;
+          
+          catchments.forEach((catchment, index) => {
+            const name = catchment.properties?.name || `Catchment ${index + 1}`;
+            content += `<div class="catchment-list-item">${name}</div>`;
+          });
+          
+          content += `</div></div>`;
+        }
+        
+        content += `</div>`;
+        
+        L.popup()
+          .setLatLng(latlng)
+          .setContent(content)
+          .openOn(map);
+      }
+      
+      loadCatchments()
+        .then(() => {
+          return loadTopoJSONTracts();
+        })
+        .catch(error => {
+          console.error('Error loading data:', error);
+          statusEl.textContent = 'Data load error: ' + error.message;
+        });
     });
-  });
-
-  document.querySelectorAll('input[name="providerType"]').forEach(radio => {
-    radio.addEventListener('change', e => {
-      currentProvider = e.target.value;
-      loadTracts();
-    });
-  });
-
-  loadTracts();
-});
-</script>
-
+  </script>
 </body>
 </html>
