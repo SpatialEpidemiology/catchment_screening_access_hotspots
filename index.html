@@ -92,7 +92,10 @@
         return fetch('https://raw.githubusercontent.com/SpatialEpidemiology/catchment_screening_access_hotspots/main/assets/catchments.json')
           .then(r=>r.json())
           .then(g=>{
-            catchmentsLayer = L.geoJSON(g,{ style:{ color:'#000', weight:4.5, fillOpacity:0, dashArray:'5,8', opacity:0.9 }}).addTo(map);
+            catchmentsLayer = L.geoJSON(g,{
+              style:{ color:'#000', weight:4.5, fillOpacity:0, dashArray:'5,8', opacity:0.9 },
+              interactive: false
+            }).addTo(map);
             catchmentsLayer.bringToFront();
           });
       }
@@ -136,7 +139,6 @@
         content += `<div class="data-row"><span class="data-label">Cluster Type:</span> <span class="data-value">${feature.properties[currentField] || 'N/A'}</span></div>`;
         content += `</div>`;
 
-        // catchments overlapping this tract
         if(catchmentsLayer){
           let overlapping = [];
           catchmentsLayer.eachLayer(layer => {
