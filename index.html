@@ -1,174 +1,128 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Overlapping Clusters of Primary Care Access <br> & CRC Screening in Cancer Center Catchment Areas</title>
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css"/>
-  <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
-  <style>
-    html, body, #map { height: 100%; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-    #map { width: 100%; background: #f0f5f9; }
-    .control-panel { position: absolute; top: 10px; left: 10px; background: rgba(255,255,255,0.95); padding: 15px; font-size: 14px; border-radius: 8px; z-index: 1000; max-width: 260px; box-shadow: 0 3px 10px rgba(0,0,0,0.2); border: 1px solid #ddd; }
-    .control-panel h3 { margin-top: 0; color: #2c3e50; border-bottom: 1px solid #eee; padding-bottom: 8px; font-size: 16px; }
-    .legend { position: absolute; bottom: 70px; right: 20px; background: rgba(255,255,255,0.95); padding: 15px; font-size: 14px; border-radius: 8px; z-index: 1000; max-width: 300px; box-shadow: 0 3px 10px rgba(0,0,0,0.2); border: 1px solid #ddd; }
-    .legend h3 { margin-top: 0; color: #2c3e50; border-bottom: 1px solid #eee; padding-bottom: 8px; font-size: 16px; }
-    .legend .color-box { display: inline-block; width: 20px; height: 20px; margin-right: 8px; border-radius: 3px; border: 1px solid rgba(0,0,0,0.2); }
-    .legend .line-box { display: inline-block; width: 20px; height: 7.5px; margin-right: 8px; background: #000; border-radius: 2px; }
-    .legend-item { margin: 5px 0; display: flex; align-items: center; }
-    .radio-group { margin-bottom: 15px; }
-    label { display: flex; align-items: center; margin: 5px 0; cursor: pointer; padding: 5px; border-radius: 4px; }
-    label:hover { background: #f1f8ff; }
-    input[type="radio"] { margin-right: 8px; }
-    .title-bar { position: absolute; top: 10px; left: 0; right: 0; text-align: center; z-index: 1000; }
-    .title-bar h1 { display: inline-block; background: rgba(255,255,255,0.9); padding: 10px 25px; border-radius: 30px; font-size: 1.4em; color: #2c3e50; box-shadow: 0 2px 8px rgba(0,0,0,0.1); margin: 0; }
-    .status-bar { position: absolute; bottom: 10px; left: 10px; background: rgba(255,255,255,0.9); padding: 8px 15px; border-radius: 4px; font-size: 12px; z-index: 1000; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
-    .loading-indicator { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); background: rgba(255,255,255,0.9); padding: 20px; border-radius: 8px; z-index: 1000; box-shadow: 0 4px 15px rgba(0,0,0,0.2); text-align:center;}
-    .combined-popup { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 320px; }
-    .combined-popup h4 { margin: 0 0 10px 0; color: #2c3e50; border-bottom: 1px solid #eee; padding-bottom: 5px; }
-    .combined-popup .section { margin-bottom: 15px; }
-    .combined-popup .section-title { font-weight: bold; color: #2c3e50; margin-bottom: 8px; padding-bottom: 3px; border-bottom: 1px solid #f0f0f0; }
-    .combined-popup .data-row { display: flex; justify-content: space-between; margin-bottom: 4px; }
-    .combined-popup .data-label { font-weight: 500; color: #555; }
-    .combined-popup .data-value { font-weight: 600; color: #2c3e50; }
-    .catchment-list { margin-top: 5px; max-height: 120px; overflow-y: auto; padding: 5px; background: #f9f9f9; border-radius: 4px; }
-    .catchment-list-item { padding: 5px; border-bottom: 1px solid #eee; }
-    .catchment-list-item:last-child { border-bottom: none; }
-    .leaflet-control-zoom { margin-top: 80px !important; margin-right: 10px !important; border: none !important; }
-    .leaflet-control-zoom a { background-color: rgba(255,255,255,0.9) !important; border: 1px solid #ccc !important; border-radius: 4px !important; width: 30px !important; height: 30px !important; line-height: 30px !important; font-size: 18px !important; margin-bottom: 5px !important; box-shadow: 0 1px 5px rgba(0,0,0,0.1) !important; }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Interactive Census Tracts Map</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
+<script src="https://unpkg.com/topojson-client@3/dist/topojson-client.min.js"></script>
+<style>
+body { margin:0; padding:0; font-family: Arial, sans-serif; }
+#map { width:100%; height:100vh; }
+#status { position:absolute; top:10px; left:10px; z-index:1000; background:#fff; padding:5px 10px; border-radius:4px; box-shadow:0 0 6px rgba(0,0,0,0.3); }
+#loadingIndicator { position:absolute; top:50px; left:10px; z-index:1000; display:none; background:#fff; padding:5px 10px; border-radius:4px; box-shadow:0 0 6px rgba(0,0,0,0.3); }
+.combined-popup { font-size:14px; line-height:1.4; max-width:300px; }
+.combined-popup .section { margin-bottom:10px; padding-bottom:5px; border-bottom:1px solid #ccc; }
+.combined-popup .section-title { font-weight:bold; margin-bottom:5px; }
+.combined-popup .data-row { margin-bottom:2px; }
+.combined-popup .data-label { font-weight:bold; }
+.combined-popup .catchment-list { margin-top:5px; padding-left:10px; }
+.combined-popup .catchment-list-item { margin-bottom:2px; }
+</style>
 </head>
 <body>
-  <div class="title-bar">
-    <h1>Overlapping Clusters of Primary Care Access <br> & CRC Screening in Cancer Center Catchment Areas</h1>
-  </div>
-
-  <div id="map"></div>
-
-  <div class="control-panel">
-    <h3>Cluster Visualization</h3>
-    <div class="radio-group">
-      <label><input type="radio" name="tractField" value="overlap_type" checked>95% Credible Interval</label>
-      <label><input type="radio" name="tractField" value="overlap_type_99">99% Credible Interval</label>
-    </div>
-    <div class="radio-group">
-      <label><input type="radio" name="providerType" value="pcp" checked>PCP</label>
-      <label><input type="radio" name="providerType" value="gi">GI</label>
-    </div>
-  </div>
-
-  <div class="legend">
-    <h3>Legend</h3>
-    <div id="legend-content">
-      <div class="legend-item"><span class="color-box" style="background:#d73027;"></span>Low Screening-Low Access</div>
-      <div class="legend-item"><span class="color-box" style="background:#4575b4;"></span>High Screening-High Access</div>
-      <div class="legend-item"><span class="color-box" style="background:#bebebe;"></span>Non-significant</div>
-      <div class="legend-item"><span class="line-box"></span>Catchment Areas</div>
-    </div>
-  </div>
-
-  <div class="status-bar"><span id="status">Initializing map...</span></div>
-  <div class="loading-indicator" id="loadingIndicator" style="display:none;"><p>Loading data...</p></div>
-
-  <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
-  <script src="https://unpkg.com/topojson-client@3"></script>
-
-  <script>
-    document.addEventListener('DOMContentLoaded', function() {
-      const statusEl = document.getElementById('status');
-      const loadingIndicator = document.getElementById('loadingIndicator');
-
-      const map = L.map('map', { zoomControl:false }).setView([33.5186,-86.8104],7);
-      L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png').addTo(map);
-      L.control.zoom({ position:'topright' }).addTo(map);
-
-      let catchmentsLayer = null;
-      let tractsLayer = null;
-      let currentField = 'overlap_type';
-      let currentProvider = 'pcp';
-
-      function showLoading(show){ loadingIndicator.style.display = show ? 'block':'none'; }
-
-      function loadCatchments(){
-        return fetch('https://raw.githubusercontent.com/SpatialEpidemiology/catchment_screening_access_hotspots/main/assets/catchments.json')
-          .then(r=>r.json())
-          .then(g=>{
-            catchmentsLayer = L.geoJSON(g,{ style:{ color:'#000', weight:4.5, fillOpacity:0, dashArray:'5,8', opacity:0.9 }}).addTo(map);
-            catchmentsLayer.bringToFront();
-          });
-      }
-
-      function loadTopoJSONTracts(){
-        showLoading(true);
-        const ci = currentField.includes('_99') ? '99':'95';
-        const file = currentProvider==='pcp'
-          ? `https://raw.githubusercontent.com/SpatialEpidemiology/catchment_screening_access_hotspots/main/assets/sc_acc_hot_spots_overlap_${ci}_simpl_topo.json`
-          : `https://raw.githubusercontent.com/SpatialEpidemiology/catchment_screening_access_hotspots/main/assets/sc_acc_gi_hot_spots_overlap_${ci}_topo_simpl.json`;
-
-        return fetch(file)
-          .then(r=>r.json())
-          .then(t=>{
-            if(tractsLayer) map.removeLayer(tractsLayer);
-            const g = topojson.feature(t, t.objects[Object.keys(t.objects)[0]]);
-            tractsLayer = L.geoJSON(g,{ 
-              style:getStyleForField,
-              onEachFeature: (feature, layer) => {
-                layer.on('click', function(e){
-                  showCombinedPopup(e.latlng, feature);
-                });
-              }
-            }).addTo(map);
-            catchmentsLayer && catchmentsLayer.bringToFront();
-            showLoading(false);
-          });
-      }
-
-      function getStyleForField(f){
-        const v = f.properties[currentField];
-        if(v==='Low Screening-Low Access Cluster') return { fillColor:'#d73027', fillOpacity:0.8, color:'#444', weight:0.3 };
-        if(v==='High Screening-High Access Cluster') return { fillColor:'#4575b4', fillOpacity:0.8, color:'#444', weight:0.3 };
-        return { fillColor:'#bebebe', fillOpacity:0.8, color:'#444', weight:0.3 };
-      }
-
-      function showCombinedPopup(latlng, feature){
-        let content = `<div class="combined-popup"><h4>Tract Information</h4>`;
+<div id="status">Loading map...</div>
+<div id="loadingIndicator">Loading data...</div>
+<div id="map"></div>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const statusEl = document.getElementById('status');
+  const loadingIndicator = document.getElementById('loadingIndicator');
+  const map = L.map('map', { zoomControl:true }).setView([33.5186,-86.8104], 7);
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+    attribution: '&copy; <a href="https://www.carto.com/">CARTO</a>',
+    subdomains: 'abcd', maxZoom: 19
+  }).addTo(map);
+  let tractsLayer = null;
+  let catchmentsLayer = null;
+  let currentField = 'overlap_type';
+  let currentProvider = 'pcp';
+  function showLoading(show){ loadingIndicator.style.display = show ? 'block':'none'; }
+  function loadCatchments(){
+    statusEl.textContent = 'Loading catchments...';
+    return fetch('https://raw.githubusercontent.com/SpatialEpidemiology/catchment_screening_access_hotspots/main/assets/catchments.json')
+      .then(r=>r.json())
+      .then(g=>{
+        catchmentsLayer = L.geoJSON(g,{style:{ color:'#000', weight:4.5, fillOpacity:0, dashArray:'5,8', opacity:0.9 }}).addTo(map);
+        catchmentsLayer.bringToFront();
+        statusEl.textContent = 'Catchments loaded';
+      });
+  }
+  function loadTracts(){
+    showLoading(true);
+    statusEl.textContent = 'Loading census tracts...';
+    const ci = currentField.includes('_99') ? '99':'95';
+    const file = currentProvider==='pcp'
+      ? `https://raw.githubusercontent.com/SpatialEpidemiology/catchment_screening_access_hotspots/main/assets/sc_acc_hot_spots_overlap_${ci}_simpl_topo.json`
+      : `https://raw.githubusercontent.com/SpatialEpidemiology/catchment_screening_access_hotspots/main/assets/sc_acc_gi_hot_spots_overlap_${ci}_topo_simpl.json`;
+    return fetch(file)
+      .then(r=>r.json())
+      .then(t=>{
+        if(tractsLayer) map.removeLayer(tractsLayer);
+        const geojson = topojson.feature(t, t.objects[Object.keys(t.objects)[0]]);
+        tractsLayer = L.geoJSON(geojson, { style: styleTract }).addTo(map);
+        catchmentsLayer && catchmentsLayer.bringToFront();
+        statusEl.textContent = 'Census tracts loaded';
+        showLoading(false);
+      });
+  }
+  function styleTract(feature){
+    const v = feature.properties[currentField];
+    if(v==='Low Screening-Low Access Cluster') return { fillColor:'#d73027', fillOpacity:0.8, color:'#444', weight:0.3 };
+    if(v==='High Screening-High Access Cluster') return { fillColor:'#4575b4', fillOpacity:0.8, color:'#444', weight:0.3 };
+    return { fillColor:'#bebebe', fillOpacity:0.8, color:'#444', weight:0.3 };
+  }
+  function findFeaturesAtPoint(latlng){
+    const point = turf.point([latlng.lng, latlng.lat]);
+    const features = [];
+    if(tractsLayer){
+      tractsLayer.eachLayer(layer=>{
+        try { if(turf.booleanPointInPolygon(point, layer.feature)) features.push({ type:'tract', properties: layer.feature.properties }); }
+        catch(e){console.error('Tract check error', e);}
+      });
+    }
+    if(catchmentsLayer){
+      catchmentsLayer.eachLayer(layer=>{
+        try { if(turf.booleanPointInPolygon(point, layer.feature)) features.push({ type:'catchment', properties: layer.feature.properties }); }
+        catch(e){console.error('Catchment check error', e);}
+      });
+    }
+    return features;
+  }
+  function showCombinedPopup(latlng, features){
+    let content = `<div class="combined-popup">`;
+    const tracts = features.filter(f=>f.type==='tract');
+    const catchments = features.filter(f=>f.type==='catchment');
+    if(tracts.length>0){
+      content += `<h4>Tract Information</h4>`;
+      tracts.forEach((tract,index)=>{
+        const props = tract.properties;
         content += `<div class="section">`;
-        content += `<div class="section-title">Tract ${feature.properties.id || ''}</div>`;
-        content += `<div class="data-row"><span class="data-label">Cluster Type:</span> <span class="data-value">${feature.properties[currentField] || 'N/A'}</span></div>`;
-        content += `</div>`;
-
-        // catchments overlapping this tract
-        if(catchmentsLayer){
-          let overlapping = [];
-          catchmentsLayer.eachLayer(layer => {
-            if(turf.booleanIntersects(layer.toGeoJSON(), feature)) overlapping.push(layer.feature.properties?.name || 'Catchment Area');
-          });
-          if(overlapping.length){
-            content += `<div class="section"><div class="section-title">Catchment Areas (${overlapping.length})</div>`;
-            content += `<div class="catchment-list">`;
-            overlapping.forEach(c => content += `<div class="catchment-list-item">${c}</div>`);
-            content += `</div></div>`;
-          }
+        content += `<div class="section-title">${props.name || 'Tract ' + (index+1)}</div>`;
+        for(const key in props){
+          if(key!==currentField) content += `<div class="data-row"><span class="data-label">${key}:</span> <span class="data-value">${props[key]}</span></div>`;
         }
-
+        content += `<div class="data-row"><span class="data-label">Cluster Type:</span> <span class="data-value">${props[currentField]}</span></div>`;
         content += `</div>`;
-        L.popup().setLatLng(latlng).setContent(content).openOn(map);
-      }
-
-      document.querySelectorAll('input[name="tractField"]').forEach(r=>{
-        r.addEventListener('change',e=>{
-          if(e.target.checked){ currentField=e.target.value; loadTopoJSONTracts(); }
-        });
       });
-
-      document.querySelectorAll('input[name="providerType"]').forEach(r=>{
-        r.addEventListener('change',e=>{
-          if(e.target.checked){ currentProvider=e.target.value; loadTopoJSONTracts(); }
-        });
-      });
-
-      loadCatchments().then(loadTopoJSONTracts);
-    });
-  </script>
+    }
+    if(catchments.length>0){
+      content += `<div class="section"><div class="section-title">Catchment Areas (${catchments.length})</div>`;
+      content += `<div class="catchment-list">`;
+      catchments.forEach((c,index)=>{ content += `<div class="catchment-list-item">${c.properties.name || 'Catchment '+(index+1)}</div>`; });
+      content += `</div></div>`;
+    }
+    content += `</div>`;
+    L.popup().setLatLng(latlng).setContent(content).openOn(map);
+  }
+  map.on('click', function(e){
+    const features = findFeaturesAtPoint(e.latlng);
+    if(features.length>0) showCombinedPopup(e.latlng, features);
+  });
+  loadCatchments().then(loadTracts);
+});
+</script>
 </body>
 </html>
