@@ -170,6 +170,18 @@
 
       loadCatchments().then(loadTopoJSONTracts);
     });
+            //note
+        var note = L.control({ position: "bottomleft"});
+	    
+        //adding note to map
+        note.onAdd = function(map) {
+          var div2 = L.DomUtil.create("div", "note");
+          div2.innerHTML += "<h4>Note: Missingness due to zero population in tract<br>(e.g., national/state parks, airports, lakes, etc.)</h4>";
+
+         return div2;
+         };
+
+         note.addTo(map);
   </script>
 </body>
 </html>
