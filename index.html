@@ -68,6 +68,36 @@
       box-shadow: 0 3px 10px rgba(0,0,0,0.2);
       border: 1px solid #ddd;
     }
+	  
+	.legend h3 {
+ 	 margin: 0 0 10px 0; 
+ 	 padding: 0;
+ 	 font-size: 16px;
+ 	 color: #2c3e50;
+	}
+
+	.legend-item {
+	  display: flex;
+	  align-items: center;   /* vertical centering */
+	  gap: 10px;             /* space between box and text */
+	  margin-bottom: 6px;
+	}
+
+	.legend-swatch {
+	  width: 20px;
+	  height: 20px;
+	  display: inline-block;
+	  border: 1px solid #999;
+	  flex-shrink: 0;
+	}
+
+	.legend-line {
+	  width: 20px;
+	  height: 4px;
+	  background: #000;
+	  flex-shrink: 0;
+	}
+
 
     .title-bar {
       position: absolute;
@@ -202,10 +232,26 @@
 
 <div class="legend">
   <h3>Legend</h3>
-  <div><span style="background:#d73027;width:20px;height:20px;display:inline-block;"></span> Low Screening-Low Access</div>
-  <div><span style="background:#4575b4;width:20px;height:20px;display:inline-block;"></span> High Screening-High Access</div>
-  <div><span style="background:#bebebe;width:20px;height:20px;display:inline-block;"></span> Non-significant</div>
-  <div><span style="width:20px;height:4px;display:inline-block;background:#000;"></span> Catchment Areas</div>
+
+  <div class="legend-item">
+    <span class="legend-swatch" style="background:#d73027;"></span>
+    <span>Low Screening–Low Access</span>
+  </div>
+
+  <div class="legend-item">
+    <span class="legend-swatch" style="background:#4575b4;"></span>
+    <span>High Screening–High Access</span>
+  </div>
+
+  <div class="legend-item">
+    <span class="legend-swatch" style="background:#bebebe;"></span>
+    <span>Non-significant</span>
+  </div>
+
+  <div class="legend-item">
+    <span class="legend-line"></span>
+    <span>Catchment Areas</span>
+  </div>
 </div>
 
 <div class="loading-indicator" id="loadingIndicator" style="display:none;">
